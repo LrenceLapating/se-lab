@@ -419,89 +419,45 @@ export default {
     },
     loadSchedulesFromStorage() {
       try {
-        // First check if the user is still authenticated
-        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
-        if (!token) {
-          console.error('No token found when loading schedules');
-          return;
-        }
-
-        // Initialize empty schedules array
-        this.schedules = [];
+        this.schedules = []; // Initialize as empty array
         
-        // Load all types of schedules from localStorage
-        
-        // 1. Lab schedules
+        // Load lab schedules
         const labSchedules = localStorage.getItem('labSchedules');
         if (labSchedules) {
-          try {
-            const parsedLabSchedules = JSON.parse(labSchedules);
-            if (Array.isArray(parsedLabSchedules)) {
-              this.schedules = [...this.schedules, ...parsedLabSchedules];
-              console.log('Loaded lab schedules:', parsedLabSchedules.length);
-            }
-          } catch (e) {
-            console.error('Error parsing lab schedules from localStorage:', e);
+          const parsedLabSchedules = JSON.parse(labSchedules);
+          if (Array.isArray(parsedLabSchedules)) {
+            this.schedules = [...this.schedules, ...parsedLabSchedules];
           }
         }
-        
-        // 2. Academic Coordinator schedules
-        const acadSchedules = localStorage.getItem('acad_coor_schedules');
-        if (acadSchedules) {
-          try {
-            const parsedAcadSchedules = JSON.parse(acadSchedules);
-            if (Array.isArray(parsedAcadSchedules)) {
-              this.schedules = [...this.schedules, ...parsedAcadSchedules];
-              console.log('Loaded academic coordinator schedules:', parsedAcadSchedules.length);
-            }
-          } catch (e) {
-            console.error('Error parsing academic coordinator schedules from localStorage:', e);
-          }
-        }
-        
-        // 3. Generic schedules
-        const genericSchedules = localStorage.getItem('schedules');
-        if (genericSchedules) {
-          try {
-            const parsedGenericSchedules = JSON.parse(genericSchedules);
-            if (Array.isArray(parsedGenericSchedules)) {
-              this.schedules = [...this.schedules, ...parsedGenericSchedules];
-              console.log('Loaded generic schedules:', parsedGenericSchedules.length);
-            }
-          } catch (e) {
-            console.error('Error parsing generic schedules from localStorage:', e);
-          }
-        }
-        
-        // 4. Viewer schedules
+
+        // Load viewer schedules
         const viewerSchedules = localStorage.getItem('viewer_schedules');
         if (viewerSchedules) {
-          try {
-            const parsedViewerSchedules = JSON.parse(viewerSchedules);
-            if (Array.isArray(parsedViewerSchedules)) {
-              this.schedules = [...this.schedules, ...parsedViewerSchedules];
-              console.log('Loaded viewer schedules:', parsedViewerSchedules.length);
-            }
-          } catch (e) {
-            console.error('Error parsing viewer schedules from localStorage:', e);
+          const parsedViewerSchedules = JSON.parse(viewerSchedules);
+          if (Array.isArray(parsedViewerSchedules)) {
+            this.schedules = [...this.schedules, ...parsedViewerSchedules];
           }
         }
-        
-        // 5. System Admin schedules
+
+        // Load generic schedules
+        const genericSchedules = localStorage.getItem('generic_schedules');
+        if (genericSchedules) {
+          const parsedGenericSchedules = JSON.parse(genericSchedules);
+          if (Array.isArray(parsedGenericSchedules)) {
+            this.schedules = [...this.schedules, ...parsedGenericSchedules];
+          }
+        }
+
+        // Load system admin schedules
         const sysAdminSchedules = localStorage.getItem('sysadmin_schedules');
         if (sysAdminSchedules) {
-          try {
-            const parsedSysAdminSchedules = JSON.parse(sysAdminSchedules);
-            if (Array.isArray(parsedSysAdminSchedules)) {
-              this.schedules = [...this.schedules, ...parsedSysAdminSchedules];
-              console.log('Loaded system admin schedules:', parsedSysAdminSchedules.length);
-            }
-          } catch (e) {
-            console.error('Error parsing system admin schedules from localStorage:', e);
+          const parsedSysAdminSchedules = JSON.parse(sysAdminSchedules);
+          if (Array.isArray(parsedSysAdminSchedules)) {
+            this.schedules = [...this.schedules, ...parsedSysAdminSchedules];
           }
         }
-        
-        // De-duplicate schedules based on a composite key (day + startTime + labRoom)
+
+        // De-duplicate schedules based on composite key (day + startTime + labRoom)
         const uniqueSchedules = [];
         const seen = new Set();
         
@@ -512,16 +468,11 @@ export default {
             uniqueSchedules.push(schedule);
           }
         });
-        
+
         this.schedules = uniqueSchedules;
-        console.log('Total unique schedules loaded:', this.schedules.length);
-        
-        // If no schedules were found, initialize with sample schedule for demonstration
-        if (this.schedules.length === 0) {
-          this.initializeWithSampleSchedules();
-        }
       } catch (error) {
-        console.error('Error in loadSchedulesFromStorage:', error);
+        console.error('Error loading schedules from localStorage:', error);
+        this.schedules = []; // Ensure schedules is an array even if loading fails
       }
     },
     initializeWithSampleSchedules() {

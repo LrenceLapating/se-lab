@@ -1,62 +1,104 @@
-// AllSchedSysAd.vue
 <template>
-  <div class="dashboard-layout">
+  <div class="dashboard-layout" ref="scheduleComponent">
     <DashBoardSidebarSysAd />
     <div class="main-content">
       <DashBoardTopbar />
-      <div class="dashboard-content">
-        <div class="header">
-          <div class="header-left">
-            <h1>All Schedules</h1>
-            <p class="date">{{ formatDate(selectedDate) }}</p>
+      <div class="content-wrapper">
+        <div class="dashboard-header">
+          <div class="welcome-section">
+            <div class="header-content">
+              <h2>All Schedules</h2>
+              <div class="action-buttons" v-if="hasVisibleSchedules">
+                <button class="clear-btn" @click="clearAllSchedules">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 6h18"></path>
+                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                  </svg>
+                  Clear All
+                </button>
+                <button class="approve-btn" @click="approveSelectedSchedule">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 6L9 17l-5-5"/>
+                  </svg>
+                  Approve
+                </button>
+                <button class="reject-btn" @click="rejectSelectedSchedule">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                  Reject
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="main-section">
-          <div class="calendar-nav">
-            <div class="mini-calendar">
-              <Calendar @date-selected="onDateSelected" />
-            </div>
-          </div>
-          <div class="right-section">
-            <div class="search-controls">
+        <div class="dashboard-content">
+          <div class="right-panel">
+            <div class="controls-top">
               <div class="search-box">
-                <i class="fas fa-search"></i>
-                <input type="text" placeholder="Search...">
+                <span class="search-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                  </svg>
+                </span>
+                <input type="text" placeholder="Search..." />
               </div>
-              <div class="filter-group">
-                <div class="lab-select">
-                  <select v-model="selectedLab">
-                    <option value="">Select Laboratory</option>
-                    <option v-for="lab in laboratories" :key="lab" :value="lab">{{ lab }}</option>
-                  </select>
-                </div>
-                <div class="section-select">
-                  <select v-model="selectedSection">
-                    <option value="">Select Section</option>
-                    <optgroup label="BSIT">
-                      <option v-for="section in bsitSections" :key="section" :value="section">{{ section }}</option>
-                    </optgroup>
-                    <optgroup label="BSCS">
-                      <option v-for="section in bscsSections" :key="section" :value="section">{{ section }}</option>
-                    </optgroup>
-                  </select>
-                </div>
+              
+              <div class="semester-dropdown-wrapper">
+                <select v-model="selectedSemester" class="semester-dropdown">
+                  <option v-for="semester in semesters" :key="semester" :value="semester">{{ semester }}</option>
+                </select>
+              </div>
+
+              <div class="lab-dropdown-wrapper">
+                <select v-model="selectedLab" class="lab-dropdown">
+                  <option v-for="lab in labs" :key="lab" :value="lab">{{ lab }}</option>
+                </select>
               </div>
             </div>
+
             <div class="schedule-container">
-              <div class="schedule-grid">
-                <div class="time-column">
-                  <div class="time-slot" v-for="time in timeSlots" :key="time">
-                    {{ formatTime(time) }}
+              <div class="schedule-table">
+                <div class="table-header">
+                  <div class="time-header">Time</div>
+                  <div class="day-headers">
+                    <div class="day-header" v-for="(day, index) in weekDays" :key="index">
+                      <div class="day-name">{{ day.name }}</div>
+                    </div>
                   </div>
                 </div>
-                <div class="labs-grid">
-                  <div class="lab-column" v-for="lab in ['L201', 'L202', 'L203', 'L204', 'L205', 'IOT']" :key="lab">
-                    <div class="lab-header">{{ lab }}</div>
-                    <div class="lab-slots">
-                      <div class="time-slot" v-for="time in timeSlots" :key="time">
-                        <!-- Schedule content will go here -->
+                
+                <div class="table-body">
+                  <div class="time-column">
+                    <div class="time-slot" v-for="time in displayTimeSlots" :key="time">
+                      {{ time }}
+                    </div>
+                  </div>
+                  
+                  <div class="days-grid">
+                    <div class="day-column" v-for="(day, dayIndex) in weekDays" :key="dayIndex">
+                      <div class="time-slots">
+                        <div class="slot" v-for="(time, timeIndex) in displayTimeSlots" :key="timeIndex">
+                          <div 
+                            v-if="isTimeSlotWithinSchedule(day.name, time)"
+                            class="schedule-item" 
+                            :style="getScheduleStyle(day.name, time)"
+                          >
+                            <div 
+                              v-if="isScheduleStart(day.name, time)" 
+                              class="schedule-content"
+                              @click="showScheduleDetails(day.name, time)"
+                            >
+                              <div class="schedule-lab">{{ selectedLab }}</div>
+                              <div class="schedule-time">{{ getScheduleTime(day.name, time) }}</div>
+                              <div class="schedule-title">{{ getScheduleTitle(day.name, time) }}</div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -67,65 +109,699 @@
         </div>
       </div>
     </div>
+
+    <!-- Schedule Details Popup -->
+    <div class="schedule-popup" v-if="showPopup">
+      <div class="popup-content">
+        <div class="popup-header">
+          <h3>{{ selectedSchedule.title }}</h3>
+          <button class="close-btn" @click="closePopup">×</button>
+        </div>
+        <div class="popup-body">
+          <div class="detail-row">
+            <span class="detail-label">Lab:</span>
+            <span class="detail-value">{{ selectedSchedule.labRoom }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Course:</span>
+            <span class="detail-value">{{ selectedSchedule.courseName }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Section:</span>
+            <span class="detail-value">{{ selectedSchedule.section }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Instructor:</span>
+            <span class="detail-value">{{ selectedSchedule.instructorName }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Time:</span>
+            <span class="detail-value">{{ selectedSchedule.startTime }} - {{ selectedSchedule.endTime }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Day:</span>
+            <span class="detail-value">{{ selectedSchedule.day }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
 import DashBoardSidebarSysAd from '../../components/DashBoardSidebarSysAd.vue'
 import DashBoardTopbar from '../../components/DashBoardTopbar.vue'
-import Calendar from '../../components/Calendar.vue'
 
 export default {
   name: 'AllSchedSysAd',
   components: {
     DashBoardSidebarSysAd,
-    DashBoardTopbar,
-    Calendar
+    DashBoardTopbar
   },
   data() {
     return {
-      selectedDate: new Date(),
-      selectedLab: '',
-      selectedSection: '',
-      laboratories: ['L201', 'L202', 'L203', 'L204', 'L205', 'IOT'],
-      bsitSections: ['BSIT-1A', 'BSIT-1B', 'BSIT-2A', 'BSIT-2B', 'BSIT-3A', 'BSIT-3B', 'BSIT-4A', 'BSIT-4B'],
-      bscsSections: ['BSCS-1A', 'BSCS-2A', 'BSCS-3A', 'BSCS-4A'],
-      timeSlots: [
-        '7:30', '8:00', '8:30', '9:00', '9:30', '10:00', '10:30', '11:00',
-        '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30',
-        '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00',
-        '18:30', '19:00', '19:30', '20:00'
-      ]
+      selectedLab: 'L201',
+      labs: ['L201', 'L202', 'L203', 'L204', 'L205', 'IOT'],
+      selectedSemester: '1st Sem 2025-2026',
+      semesters: [
+        '1st Sem 2025-2026',
+        '2nd Sem 2025-2026',
+        'Summer 2026',
+        '1st Sem 2026-2027',
+        '2nd Sem 2026-2027',
+        'Summer 2027'
+      ],
+      displayTimeSlots: [
+        '7:30 AM', '8:00 AM', '8:30 AM', '9:00 AM', '9:30 AM', '10:00 AM',
+        '10:30 AM', '11:00 AM', '11:30 AM', '12:00 PM', '12:30 PM', '1:00 PM',
+        '1:30 PM', '2:00 PM', '2:30 PM', '3:00 PM', '3:30 PM', '4:00 PM',
+        '4:30 PM', '5:00 PM', '5:30 PM', '6:00 PM', '6:30 PM', '7:00 PM',
+        '7:30 PM', '8:00 PM'
+      ],
+      schedules: [],
+      allSchedules: [], // To store all schedules before filtering
+      weekDays: [],
+      showPopup: false,
+      selectedSchedule: {},
+      userName: 'User',
+      pollInterval: null, // For storing the polling interval
+      lastUpdateTimestamp: null // To track the last update time
+    }
+  },
+  created() {
+    this.checkAuth();
+    // Start polling for updates
+    this.startPolling();
+  },
+  beforeDestroy() {
+    // Clean up polling when component is destroyed
+    this.stopPolling();
+  },
+  mounted() {
+    this.checkAuth();
+    this.getUserName();
+    this.loadSchedulesFromStorage();
+    this.generateWeekDays();
+    this.loadPendingSchedules();
+    this.loadRegistrationRequests();
+  },
+  watch: {
+    selectedSemester: {
+      handler(newSemester) {
+        this.filterSchedulesBySemester();
+      },
+      immediate: true
+    }
+  },
+  computed: {
+    hasVisibleSchedules() {
+      return this.schedules.some(schedule => 
+        schedule.labRoom === this.selectedLab && 
+        schedule.semester === this.selectedSemester
+      );
     }
   },
   methods: {
-    onDateSelected(date) {
-      this.selectedDate = date
+    checkAuth() {
+      // Check if user is authenticated and has the correct role
+      const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+      const userStr = sessionStorage.getItem('user') || localStorage.getItem('user');
+      
+      if (!token || !userStr) {
+        console.error('No authentication found, redirecting to login');
+        this.$router.push('/login');
+        return;
+      }
+      
+      try {
+        const userData = JSON.parse(userStr);
+        
+        // Verify the user has System Administrator role
+        if (userData.role !== 'System Administrator') {
+          console.error('User does not have System Administrator role');
+          // Redirect to the appropriate dashboard based on role
+          if (userData.role === 'Academic Coordinator') {
+            this.$router.push('/dashboard-acad-coor');
+          } else if (userData.role === 'Lab InCharge') {
+            this.$router.push('/dashboard-lab');
+          } else {
+            this.$router.push('/dashboard-viewer');
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+        this.$router.push('/login');
+      }
     },
-    formatDate(date) {
-      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-      const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-      return `${days[date.getDay()]}, ${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`
+    getUserName() {
+      // Get user data from session or local storage
+      const userStr = sessionStorage.getItem('user') || localStorage.getItem('user');
+      if (userStr) {
+        try {
+          const userData = JSON.parse(userStr);
+          if (userData.full_name) {
+            // Get first name only
+            this.userName = userData.full_name.split(' ')[0];
+          }
+        } catch (error) {
+          console.error('Error parsing user data:', error);
+        }
+      }
     },
-    formatTime(time) {
-      const [hours, minutes] = time.split(':')
-      const hour = parseInt(hours)
-      const ampm = hour >= 12 ? 'PM' : 'AM'
-      const hour12 = hour % 12 || 12
-      return `${hour12}:${minutes}${ampm}`
+    previousLab() {
+      const currentIndex = this.labs.indexOf(this.selectedLab)
+      if (currentIndex > 0) {
+        this.selectedLab = this.labs[currentIndex - 1]
+      }
+    },
+    nextLab() {
+      const currentIndex = this.labs.indexOf(this.selectedLab)
+      if (currentIndex < this.labs.length - 1) {
+        this.selectedLab = this.labs[currentIndex + 1]
+      }
+    },
+    generateWeekDays() {
+      // Simply use the fixed days without dates
+      this.weekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(name => {
+        return { name }
+      });
+    },
+    isTimeSlotInSchedule(timeSlot, startTime, endTime) {
+      try {
+        // Convert timeSlot, startTime, and endTime to minutes for easy comparison
+        const timeSlotMinutes = this.convertTimeToMinutes(timeSlot);
+        const startTimeMinutes = this.convertTimeToMinutes(startTime);
+        const endTimeMinutes = this.convertTimeToMinutes(endTime);
+        
+        // Check if timeSlot is within or at the start of the schedule
+        return timeSlotMinutes >= startTimeMinutes && timeSlotMinutes < endTimeMinutes;
+      } catch (error) {
+        console.error('Error checking if time slot is in schedule:', error);
+        return false;
+      }
+    },
+    convertTimeToMinutes(time) {
+      try {
+        // Parse time string (format: "HH:MM AM/PM")
+        const [hourStr, minutePeriodStr] = time.split(':');
+        if (!minutePeriodStr) {
+          console.error('Invalid time format:', time);
+          return 0;
+        }
+        
+        const minutePeriod = minutePeriodStr.trim();
+        const minuteStr = minutePeriod.split(' ')[0];
+        const period = minutePeriod.split(' ')[1];
+        
+        if (!hourStr || !minuteStr || !period) {
+          console.error('Invalid time components:', { hourStr, minuteStr, period });
+          return 0;
+        }
+        
+        let hour = parseInt(hourStr);
+        const minute = parseInt(minuteStr);
+        
+        // Convert to 24-hour format
+        if (period === 'PM' && hour < 12) hour += 12;
+        if (period === 'AM' && hour === 12) hour = 0;
+        
+        const totalMinutes = hour * 60 + minute;
+        
+        // Return total minutes
+        return totalMinutes;
+      } catch (error) {
+        console.error('Error converting time to minutes:', time, error);
+        return 0;
+      }
+    },
+    isTimeSlotWithinSchedule(dayName, timeSlot) {
+      if (!this.schedules || this.schedules.length === 0) {
+        return false;
+      }
+      
+      const timeSlotMinutes = this.convertTimeToMinutes(timeSlot);
+      
+      // Filter by current lab room
+      return this.schedules.some(schedule => {
+        if (schedule.labRoom !== this.selectedLab || schedule.day !== dayName) {
+          return false;
+        }
+        
+        const startMinutes = this.convertTimeToMinutes(schedule.startTime);
+        const endMinutes = this.convertTimeToMinutes(schedule.endTime);
+        const isEndTimeSlot = timeSlot === schedule.endTime;
+        
+        return (timeSlotMinutes >= startMinutes && timeSlotMinutes < endMinutes) || isEndTimeSlot;
+      });
+    },
+    isScheduleStart(dayName, timeSlot) {
+      if (!this.schedules || this.schedules.length === 0) {
+        return false;
+      }
+      
+      const timeSlotMinutes = this.convertTimeToMinutes(timeSlot);
+      
+      // Filter by current lab room
+      return this.schedules.some(schedule => {
+        if (schedule.labRoom !== this.selectedLab || schedule.day !== dayName) {
+          return false;
+        }
+        
+        const startMinutes = this.convertTimeToMinutes(schedule.startTime);
+        return timeSlotMinutes === startMinutes;
+      });
+    },
+    getScheduleTitle(dayName, timeSlot) {
+      // Filter by current lab room
+      const relevantSchedules = this.schedules.filter(schedule => {
+        if (schedule.labRoom !== this.selectedLab || schedule.day !== dayName) {
+          return false;
+        }
+        
+        const startMinutes = this.convertTimeToMinutes(schedule.startTime);
+        const slotMinutes = this.convertTimeToMinutes(timeSlot);
+        
+        return startMinutes === slotMinutes;
+      });
+      
+      if (relevantSchedules.length === 0) return '';
+      return relevantSchedules[0].title;
+    },
+    getScheduleTime(dayName, timeSlot) {
+      // Filter by current lab room
+      const relevantSchedules = this.schedules.filter(schedule => {
+        if (schedule.labRoom !== this.selectedLab || schedule.day !== dayName) {
+          return false;
+        }
+        
+        const startMinutes = this.convertTimeToMinutes(schedule.startTime);
+        const slotMinutes = this.convertTimeToMinutes(timeSlot);
+        
+        return startMinutes === slotMinutes;
+      });
+      
+      if (relevantSchedules.length === 0) return '';
+      return `${relevantSchedules[0].startTime} - ${relevantSchedules[0].endTime}`;
+    },
+    getScheduleDetails(dayName, timeSlot) {
+      // Filter by current lab room
+      const relevantSchedules = this.schedules.filter(schedule => {
+        if (schedule.labRoom !== this.selectedLab || schedule.day !== dayName) {
+          return false;
+        }
+        
+        const startMinutes = this.convertTimeToMinutes(schedule.startTime);
+        const slotMinutes = this.convertTimeToMinutes(timeSlot);
+        
+        return startMinutes === slotMinutes;
+      });
+      
+      if (relevantSchedules.length === 0) return '';
+      
+      const schedule = relevantSchedules[0];
+      return `${schedule.courseName}\n${schedule.section}\n${schedule.instructorName}`;
+    },
+    getScheduleStyle(dayName, timeSlot) {
+      // Filter by current lab room
+      const schedules = this.schedules.filter(schedule => {
+        if (schedule.labRoom !== this.selectedLab || schedule.day !== dayName) {
+          return false;
+        }
+        
+        const slotMinutes = this.convertTimeToMinutes(timeSlot);
+        const startMinutes = this.convertTimeToMinutes(schedule.startTime);
+        const endMinutes = this.convertTimeToMinutes(schedule.endTime);
+        
+        return slotMinutes >= startMinutes && slotMinutes < endMinutes;
+      });
+      
+      if (schedules.length === 0) return {};
+      
+      // Use different colors for pending vs approved schedules
+      const schedule = schedules[0];
+      return {
+        backgroundColor: schedule.status === 'pending' ? '#DD385A' : '#4CAF50'
+      };
+    },
+    loadSchedulesFromStorage() {
+      try {
+        // First check if the user is still authenticated
+        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+        if (!token) {
+          console.error('No token found when loading schedules');
+          return;
+        }
+
+        // Initialize empty schedules array
+        this.allSchedules = [];
+        
+        // Load all types of schedules from localStorage
+        
+        // 1. Lab schedules
+        const labSchedules = localStorage.getItem('labSchedules');
+        if (labSchedules) {
+          try {
+            const parsedLabData = JSON.parse(labSchedules);
+            const labSchedulesArray = Array.isArray(parsedLabData) ? parsedLabData : (parsedLabData.schedules || []);
+            this.allSchedules = [...this.allSchedules, ...labSchedulesArray];
+          } catch (e) {
+            console.error('Error parsing lab schedules from localStorage:', e);
+          }
+        }
+        
+        // 2. System Admin schedules
+        const sysAdminSchedules = localStorage.getItem('sysadmin_schedules');
+        if (sysAdminSchedules) {
+          try {
+            const parsedSysAdminData = JSON.parse(sysAdminSchedules);
+            const sysAdminSchedulesArray = Array.isArray(parsedSysAdminData) ? parsedSysAdminData : (parsedSysAdminData.schedules || []);
+            this.allSchedules = [...this.allSchedules, ...sysAdminSchedulesArray];
+          } catch (e) {
+            console.error('Error parsing system admin schedules from localStorage:', e);
+          }
+        }
+        
+        // Remove duplicates based on schedule ID
+        const uniqueSchedules = [];
+        const seen = new Set();
+        this.allSchedules.forEach(schedule => {
+          if (!seen.has(schedule.id)) {
+            seen.add(schedule.id);
+            uniqueSchedules.push(schedule);
+          }
+        });
+        
+        this.allSchedules = uniqueSchedules;
+        console.log('Total unique schedules loaded:', this.allSchedules.length);
+        
+        // Apply initial filtering based on selected semester
+        this.filterSchedulesBySemester();
+      } catch (error) {
+        console.error('Error in loadSchedulesFromStorage:', error);
+        this.schedules = [];
+      }
+    },
+    filterSchedulesBySemester() {
+      console.log('Filtering by semester:', this.selectedSemester);
+      
+      if (!this.selectedSemester || !this.allSchedules) {
+        this.schedules = [];
+        return;
+      }
+      
+      // Show both pending and approved schedules in All Schedules view
+      this.schedules = this.allSchedules.filter(schedule => 
+        schedule.semester === this.selectedSemester &&
+        (schedule.status === 'pending' || schedule.status === 'approved')
+      );
+      
+      console.log(`Filtered ${this.schedules.length} schedules for semester ${this.selectedSemester}`);
+    },
+    initializeWithSampleSchedules() {
+      // Sample schedules for demonstration purposes
+      const sampleSchedules = [
+        {
+          id: '1',
+          title: 'Mobile Development',
+          courseName: 'Mobile App Development',
+          section: 'CS 401',
+          instructorName: 'John Smith',
+          day: 'Monday',
+          startTime: '9:00 AM',
+          endTime: '11:00 AM',
+          labRoom: 'L201',
+          color: '#DD385A',
+          status: 'approved',
+          semester: '1st Sem 2025-2026'
+        },
+        {
+          id: '2',
+          title: 'Data Structures',
+          courseName: 'Advanced Data Structures',
+          section: 'CS 301',
+          instructorName: 'Jane Doe',
+          day: 'Wednesday',
+          startTime: '1:00 PM',
+          endTime: '3:00 PM',
+          labRoom: 'L202',
+          color: '#5D3FD3',
+          status: 'approved',
+          semester: '1st Sem 2025-2026'
+        },
+        {
+          id: '3',
+          title: 'Web Development',
+          courseName: 'Frontend Web Development',
+          section: 'CS 201',
+          instructorName: 'Mark Johnson',
+          day: 'Friday',
+          startTime: '10:00 AM',
+          endTime: '12:00 PM',
+          labRoom: 'L201',
+          color: '#32A852',
+          status: 'approved',
+          semester: '1st Sem 2025-2026'
+        }
+      ];
+      
+      this.allSchedules = sampleSchedules;
+      
+      // Store sample schedules in localStorage
+      localStorage.setItem('sysadmin_schedules', JSON.stringify(sampleSchedules));
+      console.log('Initialized with sample schedules');
+    },
+    showScheduleDetails(dayName, timeSlot) {
+      // Find the schedule for this day and timeSlot
+      const relevantSchedules = this.schedules.filter(schedule => {
+        if (schedule.labRoom !== this.selectedLab || schedule.day !== dayName) {
+          return false;
+        }
+        
+        const startMinutes = this.convertTimeToMinutes(schedule.startTime);
+        const slotMinutes = this.convertTimeToMinutes(timeSlot);
+        
+        return startMinutes === slotMinutes;
+      });
+      
+      if (relevantSchedules.length === 0) return;
+      
+      this.selectedSchedule = relevantSchedules[0];
+      this.showPopup = true;
+    },
+    closePopup() {
+      this.showPopup = false;
+    },
+    loadPendingSchedules() {
+      try {
+        // First check if the user is still authenticated
+        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+        if (!token) {
+          console.error('No token found when loading pending schedules');
+          return;
+        }
+        
+        // Load pending schedules logic would go here
+        console.log('Loading pending schedules...');
+      } catch (error) {
+        console.error('Error in loadPendingSchedules:', error);
+      }
+    },
+    loadRegistrationRequests() {
+      try {
+        // First check if the user is still authenticated
+        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+        if (!token) {
+          console.error('No token found when loading registration requests');
+          return;
+        }
+        
+        // Load registration requests logic would go here
+        console.log('Loading registration requests...');
+      } catch (error) {
+        console.error('Error in loadRegistrationRequests:', error);
+      }
+    },
+    approveSelectedSchedule() {
+      // Get all pending schedules for current semester and lab
+      const pendingSchedules = this.allSchedules.filter(schedule => 
+        schedule.status === 'pending' &&
+        schedule.semester === this.selectedSemester &&
+        schedule.labRoom === this.selectedLab
+      );
+
+      if (pendingSchedules.length === 0) {
+        alert('No pending schedules to approve');
+        return;
+      }
+
+      try {
+        // Update all pending schedules to approved status
+        this.allSchedules = this.allSchedules.map(schedule => {
+          if (pendingSchedules.some(pending => pending.id === schedule.id)) {
+            return { ...schedule, status: 'approved' };
+          }
+          return schedule;
+        });
+
+        // Try to store in database, but continue with localStorage even if it fails
+        pendingSchedules.forEach(schedule => {
+          fetch('http://localhost:3000/api/schedules', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({ ...schedule, status: 'approved' })
+          })
+          .then(response => response.json())
+          .then(data => {
+            console.log('Schedule stored in database successfully:', data);
+          })
+          .catch(error => {
+            console.warn('Could not store schedule in database (continuing with localStorage only):', error);
+          });
+        });
+
+        // Always update localStorage regardless of database success/failure
+        try {
+          // Update sysadmin_schedules with approved schedules
+          localStorage.setItem('sysadmin_schedules', JSON.stringify(this.allSchedules));
+
+          // Update acad_coor_schedules to reflect the approved status
+          let acadCoorSchedules = JSON.parse(localStorage.getItem('acad_coor_schedules') || '[]');
+          if (!Array.isArray(acadCoorSchedules)) {
+            acadCoorSchedules = [];
+          }
+
+          // Update status of approved schedules in acad_coor_schedules
+          acadCoorSchedules = acadCoorSchedules.map(schedule => {
+            if (pendingSchedules.some(pending => pending.id === schedule.id)) {
+              return { ...schedule, status: 'approved' };
+            }
+            return schedule;
+          });
+
+          // Save back to acad_coor_schedules
+          localStorage.setItem('acad_coor_schedules', JSON.stringify(acadCoorSchedules));
+          
+          // Refresh the filtered schedules
+          this.filterSchedulesBySemester();
+          
+          // Close the popup if it's open
+          this.closePopup();
+          
+          alert(`${pendingSchedules.length} schedule(s) approved successfully`);
+        } catch (storageError) {
+          console.error('Error updating localStorage:', storageError);
+          alert('Error saving schedules. Please try again.');
+        }
+      } catch (error) {
+        console.error('Error approving schedules:', error);
+        alert('Error approving schedules. Please try again.');
+      }
+    },
+    rejectSelectedSchedule() {
+      if (!this.selectedSchedule || !this.selectedSchedule.id) {
+        alert('Please select a schedule to reject');
+        return;
+      }
+
+      // Update the schedule status
+      const scheduleIndex = this.allSchedules.findIndex(s => s.id === this.selectedSchedule.id);
+      if (scheduleIndex !== -1) {
+        // Set status back to draft so it appears in Schedule Management
+        this.allSchedules[scheduleIndex].status = 'draft';
+        
+        try {
+          // Update localStorage
+          localStorage.setItem('sysadmin_schedules', JSON.stringify(this.allSchedules));
+          localStorage.setItem('labSchedules', JSON.stringify(this.allSchedules));
+          localStorage.setItem('acad_coor_schedules', JSON.stringify(this.allSchedules));
+          
+          // Refresh the filtered schedules
+          this.filterSchedulesBySemester();
+          
+          // Close the popup
+          this.closePopup();
+          
+          alert('Schedule rejected and sent back to draft');
+        } catch (storageError) {
+          console.error('Error updating localStorage:', storageError);
+          alert('Error rejecting schedule. Please try again.');
+        }
+      }
+    },
+    calculateDurationMinutes(startTime, endTime) {
+      try {
+        const startMinutes = this.convertTimeToMinutes(startTime);
+        const endMinutes = this.convertTimeToMinutes(endTime);
+        return endMinutes - startMinutes;
+      } catch (error) {
+        console.error('Error calculating duration:', error);
+        return 60;
+      }
+    },
+    startPolling() {
+      // Poll every 5 seconds for updates
+      this.pollInterval = setInterval(() => {
+        this.checkForUpdates();
+      }, 5000);
+    },
+    stopPolling() {
+      if (this.pollInterval) {
+        clearInterval(this.pollInterval);
+        this.pollInterval = null;
+      }
+    },
+    checkForUpdates() {
+      try {
+        // Get the latest schedules from localStorage
+        const latestSchedules = localStorage.getItem('schedules');
+        if (!latestSchedules) return;
+
+        const parsedSchedules = JSON.parse(latestSchedules);
+        const latestTimestamp = parsedSchedules.timestamp || 0;
+
+        // If this is the first check or if there's a new update
+        if (!this.lastUpdateTimestamp || latestTimestamp > this.lastUpdateTimestamp) {
+          console.log('New schedule updates detected, refreshing data...');
+          this.loadSchedulesFromStorage();
+          this.lastUpdateTimestamp = latestTimestamp;
+        }
+      } catch (error) {
+        console.error('Error checking for updates:', error);
+      }
+    },
+    clearAllSchedules() {
+      // Clear all schedule-related data from localStorage
+      localStorage.removeItem('labSchedules');
+      localStorage.removeItem('sysadmin_schedules');
+      localStorage.removeItem('acad_coor_schedules');
+      localStorage.removeItem('schedules');
+      localStorage.removeItem('viewer_schedules');
+      localStorage.removeItem('generic_schedules');
+      
+      // Reset the component's schedule arrays
+      this.allSchedules = [];
+      this.schedules = [];
+      
+      console.log('All schedules cleared');
     }
   }
 }
 </script>
 
 <style scoped>
+* {
+  font-family: 'Inter', sans-serif;
+  box-sizing: border-box;
+}
+
 .dashboard-layout {
   display: flex;
-  width: 100vw;
-  height: 100vh;
+  min-height: 100vh;
   background-color: #f5f5f5;
-  overflow: hidden;
-  font-family: 'Inter', sans-serif;
+  width: 100%;
 }
 
 .main-content {
@@ -133,226 +809,422 @@ export default {
   margin-left: 70px;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  width: calc(100% - 70px);
+}
+
+.content-wrapper {
+  flex: 1;
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+.dashboard-header {
+  margin-bottom: 1.5rem;
+}
+
+.welcome-section h2 {
+  color: #e91e63;
+  font-size: 1.75rem;
+  margin: 0;
+  font-weight: 500;
 }
 
 .dashboard-content {
-  padding: 2rem;
-  height: calc(100vh - 64px);
   display: flex;
-  flex-direction: column;
-  gap: 2rem;
+  gap: 1.5rem;
 }
 
-.header {
+.right-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.controls-top {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  background: white;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  width: 250px;
+}
+
+.search-icon {
+  color: #999;
+  margin-right: 0.5rem;
+}
+
+.search-box input {
+  border: none;
+  outline: none;
+  font-size: 0.9rem;
+  width: 100%;
+}
+
+.semester-dropdown-wrapper {
+  width: 200px;
+}
+
+.semester-dropdown {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 0.6rem 0.5rem;
+  font-size: 0.9rem;
+  color: #333;
+  width: 100%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 16px;
+  padding-right: 28px;
+  cursor: pointer;
+}
+
+.lab-dropdown-wrapper {
+  width: 150px;
+}
+
+.lab-dropdown {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 0.6rem 0.5rem;
+  font-size: 0.9rem;
+  color: #333;
+  width: 100%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 16px;
+  padding-right: 28px;
+  cursor: pointer;
+}
+
+.schedule-container {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  position: relative;
+  height: 100%;
+}
+
+.schedule-table {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.table-header {
+  display: flex;
+  border-bottom: 1px solid #eaeaea;
+}
+
+.time-header {
+  width: 80px;
+  padding: 0.75rem 0.5rem;
+  text-align: center;
+  font-weight: 500;
+  color: #e91e63;
+  font-size: 0.9rem;
+  border-right: 1px solid #eaeaea;
+}
+
+.day-headers {
+  flex: 1;
+  display: flex;
+}
+
+.day-header {
+  flex: 1;
+  padding: 0.75rem 0.5rem;
+  text-align: center;
+  background-color: #e91e63;
+  color: white;
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.day-header:last-child {
+  border-right: none;
+}
+
+.day-name {
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.table-body {
+  display: flex;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.time-column {
+  width: 80px;
+  flex-shrink: 0;
+  border-right: 1px solid #eaeaea;
+}
+
+.time-slot {
+  height: 60px;
+  border-bottom: 1px solid #eaeaea;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  font-size: 0.85rem;
+}
+
+.days-grid {
+  display: flex;
+  flex: 1;
+}
+
+.day-column {
+  flex: 1;
+  border-right: 1px solid #eaeaea;
+}
+
+.day-column:last-child {
+  border-right: none;
+}
+
+.time-slots {
+  display: flex;
+  flex-direction: column;
+}
+
+.slot {
+  height: 60px;
+  border-bottom: 1px solid #eaeaea;
+  position: relative;
+}
+
+.schedule-item {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background-color: #DD385A;
+  color: white;
+  padding: 0.5rem;
+  overflow: hidden;
+  z-index: 5;
+}
+
+.schedule-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 8px;
+  box-sizing: border-box;
+  cursor: pointer;
+  text-align: center;
+}
+
+.schedule-title {
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-bottom: 0.25rem;
+}
+
+.schedule-lab {
+  font-weight: 600;
+  font-size: 0.8rem;
+  margin-bottom: 0.25rem;
+  background-color: rgba(0, 0, 0, 0.15);
+  padding: 2px 5px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.schedule-time {
+  font-size: 0.75rem;
+  opacity: 0.9;
+  margin-bottom: 0.25rem;
+  font-weight: 500;
+}
+
+.schedule-details {
+  font-size: 0.75rem;
+  opacity: 0.9;
+  white-space: pre-line;
+  line-height: 1.4;
+}
+
+.table-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.table-body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.table-body::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+
+.table-body::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
+.schedule-popup {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.popup-content {
+  background-color: white;
+  border-radius: 8px;
+  width: 420px;
+  max-width: 90%;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.popup-header {
+  background-color: #e91e63;
+  color: white;
+  padding: 1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.header-left {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-h1 {
-  font-size: 2rem;
-  color: #DD385A;
+.popup-header h3 {
   margin: 0;
+  font-size: 1.2rem;
   font-weight: 500;
-  font-family: 'Inter', sans-serif;
 }
 
-.date {
-  color: #666;
-  font-size: 0.9rem;
-  margin: 0;
-  font-family: 'Inter', sans-serif;
-}
-
-.main-section {
-  display: flex;
-  gap: 2rem;
-  height: calc(100% - 120px);
-}
-
-.calendar-nav {
-  background: white;
-  border-radius: 8px;
-  padding: 1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  width: 280px;
-  height: fit-content;
-}
-
-.right-section {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.search-controls {
-  display: flex;
-  gap: 1rem;
-  justify-content: flex-end;
-  align-items: center;
-}
-
-.filter-group {
-  display: flex;
-  gap: 1rem;
-}
-
-.search-box {
-  position: relative;
-  width: 200px;
-}
-
-.search-box input {
-  width: 100%;
-  padding: 0.5rem 1rem 0.5rem 2rem;
+.close-btn {
+  background: none;
   border: none;
-  border-radius: 8px;
-  background: rgba(221, 56, 90, 0.1);
-  outline: none;
-  font-size: 0.9rem;
-  color: #DD385A;
-  font-family: 'Inter', sans-serif;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  line-height: 1;
 }
 
-.search-box i {
-  position: absolute;
-  left: 0.75rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: rgba(221, 56, 90, 0.6);
-  font-size: 0.9rem;
+.popup-body {
+  padding: 1.5rem;
 }
 
-.lab-select select,
-.section-select select {
+.detail-row {
+  margin-bottom: 0.75rem;
+  display: flex;
+}
+
+.detail-label {
+  font-weight: 500;
+  width: 100px;
+  color: #666;
+}
+
+.detail-value {
+  flex: 1;
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 1rem;
+}
+
+.approve-btn, .reject-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   padding: 0.5rem 1rem;
   border: none;
-  border-radius: 8px;
-  background: white;
-  outline: none;
+  border-radius: 4px;
   font-size: 0.9rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  cursor: pointer;
-  font-family: 'Inter', sans-serif;
-  min-width: 160px;
-}
-
-.lab-select select {
-  color: #DD385A;
-}
-
-.section-select select {
-  min-width: 180px;
-  color: #333;
-}
-
-.section-select optgroup {
-  font-weight: 600;
-  color: #DD385A;
-}
-
-.section-select option {
-  padding: 4px 8px;
-  color: #DD385A;
-}
-
-.lab-select select option:first-child,
-.section-select select option:first-child {
-  color: #666;
-}
-
-.schedule-container {
-  flex: 1;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.schedule-grid {
-  display: flex;
-  flex: 1;
-  overflow: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(221, 56, 90, 0.6) rgba(221, 56, 90, 0.1);
-}
-
-.schedule-grid::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.schedule-grid::-webkit-scrollbar-track {
-  background: rgba(221, 56, 90, 0.1);
-  border-radius: 4px;
-}
-
-.schedule-grid::-webkit-scrollbar-thumb {
-  background-color: rgba(221, 56, 90, 0.6);
-  border-radius: 4px;
-}
-
-.labs-grid {
-  flex: 1;
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  min-width: 900px;
-}
-
-.lab-column {
-  border-right: 1px solid #eee;
-  min-width: 150px;
-  display: flex;
-  flex-direction: column;
-}
-
-.lab-header {
-  padding: 1rem;
-  text-align: center;
-  border-bottom: 1px solid #eee;
   font-weight: 500;
-  color: #DD385A;
-  background: #f9f9f9;
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.lab-slots {
-  flex: 1;
+.approve-btn {
+  background-color: #4CAF50;
+  color: white;
 }
 
-.time-column {
-  width: 80px;
-  border-right: 1px solid #eee;
-  background: #f9f9f9;
-  flex-shrink: 0;
+.approve-btn:hover {
+  background-color: #45a049;
 }
 
-.time-slot {
-  height: 60px;
-  padding: 0.5rem;
-  border-bottom: 1px solid #eee;
-  color: #DD385A;
-  font-size: 0.8rem;
+.reject-btn {
+  background-color: #f44336;
+  color: white;
+}
+
+.reject-btn:hover {
+  background-color: #da190b;
+}
+
+.approve-btn svg, .reject-btn svg {
+  margin-right: 4px;
+}
+
+.clear-btn {
   display: flex;
   align-items: center;
-  font-family: 'Inter', sans-serif;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: #ff9800;
+  color: white;
 }
 
-.lab-slots .time-slot {
-  border-right: 1px solid #eee;
-  font-family: 'Inter', sans-serif;
+.clear-btn:hover {
+  background-color: #f57c00;
+}
+
+.clear-btn svg {
+  margin-right: 4px;
 }
 </style>

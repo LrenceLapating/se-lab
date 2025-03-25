@@ -383,17 +383,54 @@ export default {
     },
     loadSchedulesFromStorage() {
       try {
-        const savedSchedules = localStorage.getItem('labSchedules');
-        if (savedSchedules) {
-          // Load all schedules
-          const allSchedules = JSON.parse(savedSchedules);
-          this.schedules = allSchedules;
-        } else {
-          this.schedules = [];
+        this.schedules = []; // Initialize as empty array
+        
+        // Load lab schedules
+        const labSchedules = localStorage.getItem('labSchedules');
+        if (labSchedules) {
+          const parsedLabSchedules = JSON.parse(labSchedules);
+          if (Array.isArray(parsedLabSchedules)) {
+            const approvedLabSchedules = parsedLabSchedules.filter(schedule => schedule.status === 'approved');
+            this.schedules = [...this.schedules, ...approvedLabSchedules];
+          }
         }
+
+        // Load viewer schedules
+        const viewerSchedules = localStorage.getItem('viewer_schedules');
+        if (viewerSchedules) {
+          const parsedViewerSchedules = JSON.parse(viewerSchedules);
+          if (Array.isArray(parsedViewerSchedules)) {
+            const approvedViewerSchedules = parsedViewerSchedules.filter(schedule => schedule.status === 'approved');
+            this.schedules = [...this.schedules, ...approvedViewerSchedules];
+          }
+        }
+
+        // Load generic schedules
+        const genericSchedules = localStorage.getItem('generic_schedules');
+        if (genericSchedules) {
+          const parsedGenericSchedules = JSON.parse(genericSchedules);
+          if (Array.isArray(parsedGenericSchedules)) {
+            const approvedGenericSchedules = parsedGenericSchedules.filter(schedule => schedule.status === 'approved');
+            this.schedules = [...this.schedules, ...approvedGenericSchedules];
+          }
+        }
+
+        // De-duplicate schedules based on composite key (day + startTime + labRoom)
+        const uniqueSchedules = [];
+        const seen = new Set();
+        
+        this.schedules.forEach(schedule => {
+          const key = `${schedule.day}-${schedule.startTime}-${schedule.labRoom}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            uniqueSchedules.push(schedule);
+          }
+        });
+
+        this.schedules = uniqueSchedules;
       } catch (error) {
         console.error('Error loading schedules from localStorage:', error);
-        this.schedules = [];
+        this.schedules = []; // Ensure schedules is an array even if loading fails
       }
     },
     previousMonth() {

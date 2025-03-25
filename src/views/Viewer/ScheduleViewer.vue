@@ -105,14 +105,52 @@ export default {
   methods: {
     loadSchedules() {
       try {
-        const savedSchedules = localStorage.getItem('labSchedules')
-        if (savedSchedules) {
-          const schedules = JSON.parse(savedSchedules)
-          this.schedules = schedules.filter(schedule => schedule.labRoom === this.selectedLab)
+        this.schedules = []; // Initialize as empty array
+        
+        // Load lab schedules
+        const labSchedules = localStorage.getItem('labSchedules');
+        if (labSchedules) {
+          const parsedLabSchedules = JSON.parse(labSchedules);
+          if (Array.isArray(parsedLabSchedules)) {
+            this.schedules = [...this.schedules, ...parsedLabSchedules];
+          }
         }
+
+        // Load viewer schedules
+        const viewerSchedules = localStorage.getItem('viewer_schedules');
+        if (viewerSchedules) {
+          const parsedViewerSchedules = JSON.parse(viewerSchedules);
+          if (Array.isArray(parsedViewerSchedules)) {
+            this.schedules = [...this.schedules, ...parsedViewerSchedules];
+          }
+        }
+
+        // Load generic schedules
+        const genericSchedules = localStorage.getItem('generic_schedules');
+        if (genericSchedules) {
+          const parsedGenericSchedules = JSON.parse(genericSchedules);
+          if (Array.isArray(parsedGenericSchedules)) {
+            this.schedules = [...this.schedules, ...parsedGenericSchedules];
+          }
+        }
+
+        // De-duplicate schedules based on composite key (day + startTime + labRoom)
+        const uniqueSchedules = [];
+        const seen = new Set();
+        
+        this.schedules.forEach(schedule => {
+          const key = `${schedule.day}-${schedule.startTime}-${schedule.labRoom}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            uniqueSchedules.push(schedule);
+          }
+        });
+
+        // Filter schedules for selected lab
+        this.schedules = uniqueSchedules.filter(schedule => schedule.labRoom === this.selectedLab);
       } catch (error) {
-        console.error('Error loading schedules:', error)
-        this.schedules = []
+        console.error('Error loading schedules:', error);
+        this.schedules = []; // Ensure schedules is an array even if loading fails
       }
     },
     generateWeekDays() {

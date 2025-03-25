@@ -52,4 +52,72 @@ CREATE TABLE IF NOT EXISTS audit_log (
     ip_address VARCHAR(45),
     timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
-); 
+);
+
+-- Semesters table
+CREATE TABLE IF NOT EXISTS semesters (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(50) NOT NULL,
+    is_active BOOLEAN DEFAULT FALSE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insert sample semesters
+INSERT INTO semesters (name, is_active) VALUES 
+('1st Sem 2025-2026', TRUE),
+('2nd Sem 2025-2026', FALSE),
+('Summer 2026', FALSE),
+('1st Sem 2026-2027', FALSE),
+('2nd Sem 2026-2027', FALSE),
+('Summer 2027', FALSE);
+
+-- Course offerings table
+CREATE TABLE IF NOT EXISTS course_offerings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(20) NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    semester_id INT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (semester_id) REFERENCES semesters(id) ON DELETE CASCADE
+);
+
+-- Lab rooms
+CREATE TABLE IF NOT EXISTS lab_rooms (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(20) NOT NULL,
+    capacity INT,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insert default lab rooms
+INSERT INTO lab_rooms (name) VALUES
+('L201'), ('L202'), ('L203'), ('L204'), ('L205'), ('IOT');
+
+-- Schedules table
+CREATE TABLE IF NOT EXISTS schedules (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(100) NOT NULL,
+    details TEXT,
+    semester_id INT NOT NULL,
+    section VARCHAR(20) NOT NULL,
+    course_code VARCHAR(20) NOT NULL,
+    course_name VARCHAR(100) NOT NULL,
+    day VARCHAR(10) NOT NULL,
+    lab_room_id INT NOT NULL,
+    instructor_name VARCHAR(100) NOT NULL,
+    start_time VARCHAR(10) NOT NULL,
+    end_time VARCHAR(10) NOT NULL,
+    duration INT NOT NULL,
+    schedule_types VARCHAR(20) NOT NULL,
+    color VARCHAR(7) DEFAULT '#DD385A',
+    created_by VARCHAR(36) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (semester_id) REFERENCES semesters(id) ON DELETE CASCADE,
+    FOREIGN KEY (lab_room_id) REFERENCES lab_rooms(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Create index for faster filtering
+CREATE INDEX idx_schedules_semester ON schedules(semester_id);
+CREATE INDEX idx_schedules_lab_room ON schedules(lab_room_id); 

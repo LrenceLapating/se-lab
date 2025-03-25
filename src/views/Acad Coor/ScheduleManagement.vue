@@ -20,15 +20,29 @@
 
         <div class="schedule-container">
           <div class="lab-navigation">
-            <button class="nav-btn" @click="previousLab">
-              <i class="nav-icon"><</i>
-            </button>
-            <div class="lab-indicator">
-              {{ selectedLab }}
+            <div class="select-semester">
+              <label>Select Semester:</label>
+              <div class="select-wrapper">
+                <select class="form-select" v-model="selectedSemester" @change="filterSchedulesBySemester">
+                  <option value="" disabled selected>1st Sem</option>
+                  <option v-for="sem in semesterOptions" :key="sem" :value="sem">
+                    {{ sem }}
+                  </option>
+                </select>
+              </div>
             </div>
-            <button class="nav-btn" @click="nextLab">
-              <i class="nav-icon">></i>
-            </button>
+            <div class="center-navigation">
+              <button class="nav-btn" @click="previousLab">
+                <i class="nav-icon"><</i>
+              </button>
+              <div class="lab-indicator">
+                {{ selectedLab }}
+              </div>
+              <button class="nav-btn" @click="nextLab">
+                <i class="nav-icon">></i>
+              </button>
+            </div>
+            <div class="navigation-spacer"></div>
           </div>
           <div class="week-header">
             <div class="time-header">
@@ -71,6 +85,12 @@
               </div>
             </div>
           </div>
+        </div>
+        <div class="schedule-actions-footer">
+          <button class="send-all-approval-btn" @click="sendAllForApproval">
+            <i class="fas fa-paper-plane"></i>
+            Send All Schedules for Approval
+          </button>
         </div>
       </div>
     </div>
@@ -207,10 +227,10 @@
               </select>
               <span>:</span>
               <select v-model="newSchedule.startMinute" class="time-select">
-                <option value="00">00</option>
-                <option value="30">30</option>
+                <option v-for="minute in timeMinutes" :key="minute" :value="minute">{{ minute }}</option>
               </select>
-              <select v-model="newSchedule.startPeriod" class="period-select">
+              <select v-model="newSchedule.startPeriod" class="period-select"
+                      @change="validateStartTime">
                 <option value="AM">AM</option>
                 <option value="PM">PM</option>
               </select>
@@ -228,10 +248,10 @@
               </select>
               <span>:</span>
               <select v-model="newSchedule.endMinute" class="time-select">
-                <option value="00">00</option>
-                <option value="30">30</option>
+                <option v-for="minute in timeMinutes" :key="minute" :value="minute">{{ minute }}</option>
               </select>
-              <select v-model="newSchedule.endPeriod" class="period-select">
+              <select v-model="newSchedule.endPeriod" class="period-select"
+                      @change="validateEndTime">
                 <option value="AM">AM</option>
                 <option value="PM">PM</option>
               </select>
@@ -532,8 +552,9 @@ export default {
         '7:30 PM', '8:00 PM'
       ],
       schedules: [],
+      allSchedules: [], // To store all schedules before filtering
       weekDays: [],
-      selectedSemester: '',
+      selectedSemester: '1st Sem 2025-2026', // Default selected semester
       selectedDay: '',
       selectedSection: '',
       showNewSemesterModal: false,
@@ -564,7 +585,8 @@ export default {
       coursesOffered: [], // Remove hardcoded courses, will be populated by imports
       days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
       labRooms: ['L201', 'L202', 'L203', 'L204', 'L205', 'IOT'],
-      timeHours: Array.from({ length: 12 }, (_, i) => i + 1),
+      timeHours: [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8], // Modified to match available hours
+      timeMinutes: ['00', '30'], // Added for better time selection
       instructors: [
         'Instructor 1', 
         'Instructor 2', 
@@ -828,9 +850,24 @@ export default {
       
       if (schedules.length === 0) return {};
       
-      return {
-        backgroundColor: schedules[0].color || '#DD385A'
-      };
+      // Use different colors for different schedule statuses
+      const schedule = schedules[0];
+      let backgroundColor;
+      switch (schedule.status) {
+        case 'draft':
+          backgroundColor = '#DD385A'; // Red
+          break;
+        case 'pending':
+          backgroundColor = '#FFA500'; // Orange
+          break;
+        case 'approved':
+          backgroundColor = '#4CAF50'; // Green
+          break;
+        default:
+          backgroundColor = '#DD385A';
+      }
+      
+      return { backgroundColor };
     },
     handleNewSemester() {
       this.showNewSemesterModal = true;
@@ -860,6 +897,19 @@ export default {
       
       const startMinutes = this.convertTimeToMinutes(startTime);
       const endMinutes = this.convertTimeToMinutes(endTime);
+      const minStartTime = this.convertTimeToMinutes('7:30 AM');
+      const maxEndTime = this.convertTimeToMinutes('8:00 PM');
+      
+      // Validate time range
+      if (startMinutes < minStartTime) {
+        alert('Schedule cannot start before 7:30 AM');
+        return;
+      }
+      
+      if (endMinutes > maxEndTime) {
+        alert('Schedule cannot end after 8:00 PM');
+        return;
+      }
       
       if (endMinutes <= startMinutes) {
         alert('End time must be after start time');
@@ -872,10 +922,10 @@ export default {
       const durationMinutes = this.calculateDurationMinutes(startTime, endTime);
       
       const newSchedule = {
-        id: Date.now(),
+        id: Date.now().toString(),
         title: `${this.newSchedule.courseCode} (${this.scheduleTypes.join('/')})`,
         details: `${courseName}\n${this.newSchedule.section}\n${this.newSchedule.instructorName}`,
-        semester: this.selectedSemester,
+        semester: this.newSchedule.semester,
         section: this.newSchedule.section,
         courseCode: this.newSchedule.courseCode,
         courseName: courseName,
@@ -886,14 +936,45 @@ export default {
         endTime: endTime,
         duration: durationMinutes,
         types: [...this.scheduleTypes],
-        color: '#DD385A'
+        color: '#DD385A',
+        status: 'draft'
       };
       
-      this.schedules.push(newSchedule);
-      this.saveSchedulesToStorage();
-      
-      this.showCreateScheduleModal = false;
-      this.resetScheduleForm();
+      try {
+        // Get existing schedules from acad_coor_schedules
+        let existingSchedules = JSON.parse(localStorage.getItem('acad_coor_schedules') || '[]');
+        
+        // Handle both array and object with schedules property
+        if (existingSchedules.schedules) {
+          existingSchedules = existingSchedules.schedules;
+        }
+        
+        // Make sure existingSchedules is an array
+        if (!Array.isArray(existingSchedules)) {
+          existingSchedules = [];
+        }
+        
+        // Add new schedule to existing schedules
+        existingSchedules.push(newSchedule);
+        
+        // Save only to acad_coor_schedules
+        localStorage.setItem('acad_coor_schedules', JSON.stringify(existingSchedules));
+        
+        // Update the component's schedules
+        this.allSchedules = existingSchedules;
+        
+        // Refresh the schedules display to show only draft schedules
+        this.filterSchedulesBySemester();
+        
+        // Close the modal and reset form
+        this.showCreateScheduleModal = false;
+        this.resetScheduleForm();
+        
+        alert('Schedule created successfully! It will be visible in other dashboards after approval.');
+      } catch (error) {
+        console.error('Error saving schedule:', error);
+        alert('Error creating schedule. Please try again.');
+      }
     },
     
     calculateDurationMinutes(startTime, endTime) {
@@ -913,59 +994,90 @@ export default {
     
     saveSchedulesToStorage() {
       try {
-        // Get all schedules from storage
-        const existingSchedulesStr = localStorage.getItem('labSchedules');
-        let allSchedules = existingSchedulesStr ? JSON.parse(existingSchedulesStr) : [];
+        // Get existing schedules from localStorage
+        let existingSchedules = JSON.parse(localStorage.getItem('acad_coor_schedules') || '[]');
         
-        // Remove schedules that were deleted
-        const currentIds = this.schedules.map(s => s.id);
-        allSchedules = allSchedules.filter(s => currentIds.includes(s.id));
+        // Handle both array and object with schedules property
+        if (existingSchedules.schedules) {
+          existingSchedules = existingSchedules.schedules;
+        }
+        
+        // Make sure existingSchedules is an array
+        if (!Array.isArray(existingSchedules)) {
+          existingSchedules = [];
+        }
+        
+        // Filter out deleted schedules from existing
+        const activeSchedules = existingSchedules.filter(schedule => !schedule.isDeleted);
         
         // Update or add new schedules
-        this.schedules.forEach(newSchedule => {
-          const index = allSchedules.findIndex(s => s.id === newSchedule.id);
+        this.allSchedules.forEach(newSchedule => {
+          const existingIndex = activeSchedules.findIndex(s => s.id === newSchedule.id);
           
-          if (index !== -1) {
+          if (existingIndex !== -1) {
             // Update existing schedule
-            allSchedules[index] = {
-              ...newSchedule,
-              title: newSchedule.title,
-              details: newSchedule.details,
-              color: '#DD385A'
+            activeSchedules[existingIndex] = {
+              ...activeSchedules[existingIndex],
+              ...newSchedule
             };
           } else {
             // Add new schedule
-            allSchedules.push({
-              ...newSchedule,
-              title: newSchedule.title,
-              details: newSchedule.details,
-              color: '#DD385A'
-            });
+            activeSchedules.push(newSchedule);
           }
         });
         
-        localStorage.setItem('labSchedules', JSON.stringify(allSchedules));
-        console.log('Saved schedules to localStorage:', allSchedules);
+        // Save to localStorage as a simple array
+        localStorage.setItem('acad_coor_schedules', JSON.stringify(activeSchedules));
+        
+        // Update the component's schedules
+        this.allSchedules = activeSchedules;
+        this.filterSchedulesBySemester();
+        
+        console.log('Schedules saved successfully');
       } catch (error) {
-        console.error('Error saving schedules to localStorage:', error);
+        console.error('Error saving schedules:', error);
       }
     },
     
     loadSchedulesFromStorage() {
       try {
-        const savedSchedules = localStorage.getItem('labSchedules');
-        if (savedSchedules) {
-          // Load all schedules
-          const allSchedules = JSON.parse(savedSchedules);
-          console.log('Loaded schedules from localStorage:', allSchedules);
-          this.schedules = allSchedules;
-        } else {
-          console.log('No saved schedules found in localStorage');
-          this.schedules = [];
+        // Load from acad_coor_schedules for draft schedules
+        let schedules = [];
+        const acadCoorSchedulesStr = localStorage.getItem('acad_coor_schedules');
+        
+        if (acadCoorSchedulesStr) {
+          let parsedData = JSON.parse(acadCoorSchedulesStr);
+          
+          // Handle both array and object with schedules property
+          if (parsedData.schedules) {
+            parsedData = parsedData.schedules;
+          }
+          
+          // Make sure parsedData is an array
+          if (Array.isArray(parsedData)) {
+            schedules = [...schedules, ...parsedData];
+          }
         }
+        
+        // Remove duplicates based on schedule ID
+        const uniqueSchedules = [];
+        const seen = new Set();
+        schedules.forEach(schedule => {
+          if (!seen.has(schedule.id)) {
+            seen.add(schedule.id);
+            uniqueSchedules.push(schedule);
+          }
+        });
+        
+        this.allSchedules = uniqueSchedules;
+        console.log('Loaded schedules from localStorage:', this.allSchedules.length);
+        
+        // Apply initial filtering based on selected semester
+        this.filterSchedulesBySemester();
       } catch (error) {
         console.error('Error loading schedules from localStorage:', error);
         this.schedules = [];
+        this.allSchedules = [];
       }
     },
     resetScheduleForm() {
@@ -1272,9 +1384,25 @@ export default {
       }
     },
     clearAllSchedules() {
-      this.schedules = [];
-      localStorage.removeItem('labSchedules');
-      console.log('All schedules cleared from memory and localStorage');
+      try {
+        // Clear all schedule-related data from localStorage
+        localStorage.removeItem('labSchedules');
+        localStorage.removeItem('sysadmin_schedules');
+        localStorage.removeItem('acad_coor_schedules');
+        localStorage.removeItem('schedules');
+        localStorage.removeItem('viewer_schedules');
+        localStorage.removeItem('generic_schedules');
+        
+        // Reset the component's schedule arrays
+        this.allSchedules = [];
+        this.schedules = [];
+        
+        console.log('All schedules cleared');
+        alert('All schedules have been cleared successfully');
+      } catch (error) {
+        console.error('Error clearing schedules:', error);
+        alert('Error clearing schedules. Please try again.');
+      }
     },
     openEditDeleteModal(dayName, timeSlot) {
       const schedule = this.schedules.find(s => s.day === dayName && s.startTime === timeSlot && s.labRoom === this.selectedLab);
@@ -1344,7 +1472,12 @@ export default {
     },
     
     updateSchedule() {
-      // No need to validate all fields, just check if any changes were made
+      // Only allow updates to draft schedules
+      if (this.selectedSchedule.status !== 'draft') {
+        alert('Only draft schedules can be edited. This schedule is already ' + this.selectedSchedule.status);
+        return;
+      }
+
       const startTime = this.editSchedule.startHour ? 
         `${this.editSchedule.startHour}:${this.editSchedule.startMinute} ${this.editSchedule.startPeriod}` :
         this.selectedSchedule.startTime;
@@ -1388,21 +1521,17 @@ export default {
         endTime: endTime,
         duration: durationMinutes,
         types: this.editSchedule.types.length > 0 ? [...this.editSchedule.types] : [...this.selectedSchedule.types],
-        color: '#DD385A'
+        color: '#DD385A',
+        status: 'draft' // Keep as draft after editing
       };
       
-      // Update all instances of this schedule across all lab rooms
-      const scheduleId = this.selectedSchedule.id;
+      // Update the schedule in allSchedules
+      const scheduleIndex = this.allSchedules.findIndex(s => s.id === this.selectedSchedule.id);
+      if (scheduleIndex !== -1) {
+        this.allSchedules[scheduleIndex] = updatedSchedule;
+      }
       
-      // Find and update all matching schedules
-      this.schedules = this.schedules.map(schedule => {
-        if (schedule.id === scheduleId) {
-          return updatedSchedule;
-        }
-        return schedule;
-      });
-      
-      // Save all changes to storage
+      // Save changes to storage
       this.saveSchedulesToStorage();
       
       // Show success feedback
@@ -1423,17 +1552,51 @@ export default {
       const scheduleId = this.selectedSchedule.id;
       const courseCode = this.selectedSchedule.courseCode;
       
-      // Remove all instances of this schedule
-      this.schedules = this.schedules.filter(schedule => schedule.id !== scheduleId);
+      // Only allow deletion of draft schedules
+      if (this.selectedSchedule.status !== 'draft') {
+        alert('Only draft schedules can be deleted. This schedule is already ' + this.selectedSchedule.status);
+        return;
+      }
       
-      // Save changes to storage
-      this.saveSchedulesToStorage();
-      
-      // Show success feedback including course freed up message
-      alert(`Schedule deleted successfully! The course "${courseCode}" is now available for scheduling again.`);
-      
-      this.showDeleteConfirmModal = false;
-      this.selectedSchedule = null;
+      try {
+        // Remove from allSchedules array
+        this.allSchedules = this.allSchedules.filter(schedule => schedule.id !== scheduleId);
+        
+        // Get and update acad_coor_schedules in localStorage
+        let existingSchedules = JSON.parse(localStorage.getItem('acad_coor_schedules') || '[]');
+        
+        // Handle both array and object with schedules property
+        if (existingSchedules.schedules) {
+          existingSchedules = existingSchedules.schedules;
+        }
+        
+        // Make sure existingSchedules is an array
+        if (!Array.isArray(existingSchedules)) {
+          existingSchedules = [];
+        }
+        
+        // Filter out the deleted schedule
+        const updatedSchedules = existingSchedules.filter(schedule => schedule.id !== scheduleId);
+        
+        // Save back to localStorage
+        localStorage.setItem('acad_coor_schedules', JSON.stringify(updatedSchedules));
+        
+        // Update the filtered schedules display
+        this.schedules = this.schedules.filter(schedule => schedule.id !== scheduleId);
+        
+        // Show success feedback
+        alert(`Schedule deleted successfully! The course "${courseCode}" is now available for scheduling again.`);
+        
+        // Close modals and reset selected schedule
+        this.showDeleteConfirmModal = false;
+        this.selectedSchedule = null;
+        
+        // Refresh the schedules display
+        this.filterSchedulesBySemester();
+      } catch (error) {
+        console.error('Error deleting schedule:', error);
+        alert('Error deleting schedule. Please try again.');
+      }
     },
     
     resetEditScheduleForm() {
@@ -1461,6 +1624,128 @@ export default {
       console.log('Clearing coursesOffered from localStorage');
       localStorage.removeItem('coursesOffered');
       this.coursesOffered = [];
+    },
+    filterSchedulesBySemester() {
+      console.log('Filtering by semester:', this.selectedSemester);
+      
+      if (!this.selectedSemester || !this.allSchedules) {
+        this.schedules = [];
+        return;
+      }
+      
+      // Show all schedules (draft, pending, and approved) in Schedule Management view
+      this.schedules = this.allSchedules.filter(schedule => 
+        schedule.semester === this.selectedSemester &&
+        (schedule.status === 'draft' || schedule.status === 'pending' || schedule.status === 'approved')
+      );
+      
+      console.log(`Filtered ${this.schedules.length} schedules for semester ${this.selectedSemester}`);
+    },
+    getScheduleStatus(dayName, timeSlot) {
+      const schedule = this.schedules.find(s => 
+        s.day === dayName && 
+        s.startTime === timeSlot && 
+        s.labRoom === this.selectedLab
+      );
+      return schedule ? schedule.status : null;
+    },
+    sendForApproval(dayName, timeSlot) {
+      const schedule = this.schedules.find(s => 
+        s.day === dayName && 
+        s.startTime === timeSlot && 
+        s.labRoom === this.selectedLab
+      );
+
+      if (schedule) {
+        if (schedule.status !== 'draft') {
+          alert('Only draft schedules can be sent for approval');
+          return;
+        }
+
+        schedule.status = 'pending';
+        this.saveSchedulesToStorage();
+        alert('Schedule sent for approval successfully!');
+      }
+    },
+    sendAllForApproval() {
+      // Get all draft schedules for current semester and lab
+      const draftSchedules = this.schedules.filter(schedule => 
+        schedule.status === 'draft' &&
+        schedule.semester === this.selectedSemester &&
+        schedule.labRoom === this.selectedLab
+      );
+
+      if (draftSchedules.length === 0) {
+        alert('No draft schedules to send for approval');
+        return;
+      }
+
+      try {
+        // Get existing schedules from sysadmin_schedules
+        let sysAdminSchedules = JSON.parse(localStorage.getItem('sysadmin_schedules') || '[]');
+        if (sysAdminSchedules.schedules) {
+          sysAdminSchedules = sysAdminSchedules.schedules;
+        }
+        if (!Array.isArray(sysAdminSchedules)) {
+          sysAdminSchedules = [];
+        }
+
+        // Update status to pending for all draft schedules
+        this.allSchedules = this.allSchedules.map(schedule => {
+          if (draftSchedules.some(draft => draft.id === schedule.id)) {
+            return { ...schedule, status: 'pending' };
+          }
+          return schedule;
+        });
+
+        // Add pending schedules to sysadmin_schedules without duplicates
+        const pendingSchedules = this.allSchedules.filter(s => s.status === 'pending');
+        pendingSchedules.forEach(pendingSchedule => {
+          const exists = sysAdminSchedules.some(s => s.id === pendingSchedule.id);
+          if (!exists) {
+            sysAdminSchedules.push(pendingSchedule);
+          }
+        });
+
+        // Save to both storages to maintain visibility in both views
+        localStorage.setItem('sysadmin_schedules', JSON.stringify(sysAdminSchedules));
+        localStorage.setItem('acad_coor_schedules', JSON.stringify(this.allSchedules));
+        
+        // Refresh the schedules display
+        this.filterSchedulesBySemester();
+        
+        alert('All schedules have been sent for approval');
+      } catch (error) {
+        console.error('Error sending schedules for approval:', error);
+        alert('Error sending schedules for approval. Please try again.');
+      }
+    },
+    validateStartTime() {
+      const startTime = `${this.newSchedule.startHour}:${this.newSchedule.startMinute} ${this.newSchedule.startPeriod}`;
+      const startMinutes = this.convertTimeToMinutes(startTime);
+      const minStartTime = this.convertTimeToMinutes('7:30 AM');
+      
+      if (startMinutes < minStartTime) {
+        alert('Schedule cannot start before 7:30 AM');
+        // Reset to 7:30 AM
+        this.newSchedule.startHour = '7';
+        this.newSchedule.startMinute = '30';
+        this.newSchedule.startPeriod = 'AM';
+      }
+    },
+    
+    validateEndTime() {
+      const endTime = `${this.newSchedule.endHour}:${this.newSchedule.endMinute} ${this.newSchedule.endPeriod}`;
+      const endMinutes = this.convertTimeToMinutes(endTime);
+      const maxEndTime = this.convertTimeToMinutes('8:00 PM');
+      
+      if (endMinutes > maxEndTime) {
+        alert('Schedule cannot end after 8:00 PM');
+        // Reset to 8:00 PM
+        this.newSchedule.endHour = '8';
+        this.newSchedule.endMinute = '00';
+        this.newSchedule.endPeriod = 'PM';
+      }
     }
   },
   computed: {
@@ -1659,13 +1944,67 @@ h1 {
   overflow: hidden;
 }
 
+.select-semester {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 200px;
+}
+
+.select-semester label {
+  font-weight: 500;
+  white-space: nowrap;
+  color: #666;
+}
+
+.select-semester .select-wrapper {
+  width: 180px;
+}
+
+.select-semester .form-select {
+  border: 1px solid #ccc;
+  font-size: 14px;
+  padding: 6px 10px;
+  height: 36px;
+  width: 180px;
+}
+
+.select-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.form-select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: #333;
+  background: white;
+  /* Force dropdown to appear at the bottom */
+  -webkit-appearance: menulist;
+  -moz-appearance: menulist;
+  appearance: menulist;
+  cursor: pointer;
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: #DD385A;
+}
+
+.select-wrapper::after {
+  display: none;
+}
+
 .lab-navigation {
   display: flex;
   align-items: center;
-  justify-content: center;
   padding: 1rem;
   gap: 0.5rem;
   border-bottom: 1px solid #DD385A;
+  justify-content: space-between;
 }
 
 .nav-btn {
@@ -2212,10 +2551,24 @@ h1 {
 }
 
 .schedule-actions {
+  margin-top: 8px;
   display: flex;
-  justify-content: center;
-  gap: 1.5rem;
-  width: 100%;
+  justify-content: flex-end;
+}
+
+.send-for-approval-btn {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8em;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.send-for-approval-btn:hover {
+  background-color: #45a049;
 }
 
 .edit-btn, .delete-btn {
@@ -2297,5 +2650,99 @@ h1 {
   font-style: italic;
   color: #666;
   font-size: 0.9rem;
+}
+
+.center-navigation {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.navigation-spacer {
+  width: 200px;
+}
+
+.clear-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: #ff9800;
+  color: white;
+  margin-right: 1rem;
+}
+
+.clear-btn:hover {
+  background-color: #f57c00;
+}
+
+.clear-btn svg {
+  margin-right: 4px;
+}
+
+.send-approval-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: #2196F3;
+  color: white;
+  margin-right: 1rem;
+}
+
+.send-approval-btn:hover {
+  background-color: #1976D2;
+}
+
+.send-approval-btn svg {
+  margin-right: 4px;
+}
+
+.schedule-actions-footer {
+  margin-top: 1rem;
+  padding: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  background: white;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.send-all-approval-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: #4CAF50;
+  color: white;
+  box-shadow: 0 2px 4px rgba(76, 175, 80, 0.2);
+}
+
+.send-all-approval-btn:hover {
+  background-color: #45a049;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+}
+
+.send-all-approval-btn i {
+  font-size: 1rem;
 }
 </style>
