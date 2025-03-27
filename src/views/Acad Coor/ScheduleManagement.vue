@@ -8,12 +8,13 @@
           <h1>Scheduling Management</h1>
           <div class="header-actions">
             <button class="import-excel-btn" @click="showImportCoursesModal">
-              <i class="fas fa-plus"></i>
-              Import Course Offerings
+              <i class="fas fa-file-import"></i> Import Course Offerings
             </button>
-            <button class="create-schedule-btn" @click="showCreateScheduleModal = true">
-              <i class="fas fa-plus"></i>
-              Create Schedule
+            <button class="import-excel-btn" style="background-color: #f44336;" @click="clearAllSchedules">
+              <i class="fas fa-trash"></i> Clear All Schedules
+            </button>
+            <button class="create-schedule-btn" @click="openCreateSchedule">
+              <i class="fas fa-plus"></i> Create Schedule
             </button>
           </div>
         </div>
@@ -185,7 +186,7 @@
               <select v-model="newSchedule.courseCode" class="form-select">
                 <option value="" disabled selected>Select Course</option>
                 <option v-for="course in availableCoursesOffered" :key="course.code" :value="course.code">
-                  {{ course.code }} - {{ course.name }}
+                  {{ course.code }} - {{ course.name }} ({{ course.semester }})
                 </option>
                 <option v-if="availableCoursesOffered.length === 0" disabled>
                   No available courses - all are in use
@@ -261,11 +262,12 @@
           <div class="form-group">
             <label>Instructor Name</label>
             <div class="select-wrapper">
-              <select v-model="newSchedule.instructorName" class="form-select">
+              <select v-model="newSchedule.instructorName" class="form-select" @change="handleInstructorSelect">
                 <option value="" disabled selected>Select Instructor</option>
                 <option v-for="instructor in instructors" :key="instructor" :value="instructor">
                   {{ instructor }}
                 </option>
+                <option value="add_new">+ Add New Instructor</option>
               </select>
             </div>
           </div>
@@ -297,6 +299,7 @@
           <li><strong>Column A:</strong> Course Code (e.g., "FW123.23")</li>
           <li><strong>Column B:</strong> Course Name (e.g., "Ignatian Spirituality & Christian Life 1")</li>
           <li><strong>Column C:</strong> Year and Section (e.g., "IT-1A")</li>
+          <li><strong>Column D:</strong> Semester (e.g., "1st Sem")</li>
         </ul>
         <p class="import-note">
           The first row should contain column headers. Matches exactly the format shown in the sample template.
@@ -409,7 +412,7 @@
               <select v-model="editSchedule.courseCode" class="form-select">
                 <option value="">Keep current: {{ selectedSchedule.courseCode }}</option>
                 <option v-for="course in availableCoursesOffered" :key="course.code" :value="course.code">
-                  {{ course.code }} - {{ course.name }}
+                  {{ course.code }} - {{ course.name }} ({{ course.semester }})
                 </option>
                 <option v-if="availableCoursesOffered.length === 0" disabled>
                   No available courses - all are in use
@@ -485,11 +488,12 @@
           <div class="form-group">
             <label>Instructor Name <span class="optional-text">(Optional)</span></label>
             <div class="select-wrapper">
-              <select v-model="editSchedule.instructorName" class="form-select">
+              <select v-model="editSchedule.instructorName" class="form-select" @change="handleEditInstructorSelect">
                 <option value="">Keep current: {{ selectedSchedule.instructorName }}</option>
                 <option v-for="instructor in instructors" :key="instructor" :value="instructor">
                   {{ instructor }}
                 </option>
+                <option value="add_new">+ Add New Instructor</option>
               </select>
             </div>
           </div>
@@ -524,6 +528,42 @@
       <div class="modal-footer">
         <button class="cancel-btn" @click="showDeleteConfirmModal = false">Cancel</button>
         <button class="delete-btn" @click="deleteSchedule">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add New Instructor Modal -->
+  <div class="modal" v-if="showAddInstructorModal">
+    <div class="modal-content instructor-modal">
+      <div class="modal-header instructor-modal-header">
+        <h2>Add New Instructor</h2>
+        <button class="close-btn" @click="showAddInstructorModal = false">×</button>
+      </div>
+      <div class="modal-body instructor-modal-body">
+        <div class="form-group">
+          <label>New Instructor Name</label>
+          <input 
+            type="text" 
+            v-model="newInstructorName" 
+            class="form-input instructor-input"
+            placeholder="Enter instructor name"
+            autofocus
+          >
+          <div class="input-icon">
+            <i class="fas fa-user-plus"></i>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer instructor-modal-footer">
+        <button class="cancel-btn instructor-cancel-btn" @click="showAddInstructorModal = false">Cancel</button>
+        <button 
+          class="add-btn instructor-add-btn" 
+          @click="addNewInstructor" 
+          :disabled="!newInstructorName.trim()"
+        >
+          <i class="fas fa-plus-circle"></i>
+          Add Instructor
+        </button>
       </div>
     </div>
   </div>
@@ -573,19 +613,19 @@ export default {
         'Summer 2027'
       ],
       sectionOptions: [
-        'BSIT 1A', 'BSIT 1A.23', 'BSIT 1B', 'BSIT 1B.23',
-        'BSCS 1A', 'BSCS 1A.23',
-        'BSIT 2A', 'BSIT 2A.23', 'BSIT 2B', 'BSIT 2B.23',
-        'BSCS 2A', 'BSCS 2A.23',
-        'BSIT 3A', 'BSIT 3A.23', 'BSIT 3B', 'BSIT 3B.23',
-        'BSCS 3A', 'BSCS 3A.23',
-        'BSIT 4A', 'BSIT 4A.23', 'BSIT 4B', 'BSIT 4B.23',
-        'BSCS 4A', 'BSCS 4A.23'
+        'BSIT 1A', 'BSIT 1B',
+        'BSCS 1A',
+        'BSIT 2A', 'BSIT 2B',
+        'BSCS 2A',
+        'BSIT 3A', 'BSIT 3B',
+        'BSCS 3A',
+        'BSIT 4A', 'BSIT 4B',
+        'BSCS 4A'
       ],
       coursesOffered: [], // Remove hardcoded courses, will be populated by imports
       days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
       labRooms: ['L201', 'L202', 'L203', 'L204', 'L205', 'IOT'],
-      timeHours: [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8], // Modified to match available hours
+      timeHours: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], // Modified to match available hours
       timeMinutes: ['00', '30'], // Added for better time selection
       instructors: [
         'Instructor 1', 
@@ -634,7 +674,9 @@ export default {
         endHour: '',
         endMinute: '00',
         endPeriod: 'AM'
-      }
+      },
+      showAddInstructorModal: false,
+      newInstructorName: ''
     }
   },
   methods: {
@@ -708,7 +750,7 @@ export default {
         const period = minutePeriod.split(' ')[1];
         
         if (!hourStr || !minuteStr || !period) {
-          console.error('Invalid time components:', { hourStr, minuteStr, period });
+          console.error('Invalid time components:', { hourStr, minuteStr, period, time });
           return 0;
         }
         
@@ -721,7 +763,7 @@ export default {
         
         const totalMinutes = hour * 60 + minute;
         // For debugging
-        console.log(`Converted time ${time} to ${totalMinutes} minutes (${hour}:${minute} ${period})`);
+        console.log(`Time conversion: "${time}" = ${hour}:${minute} (${period}) = ${totalMinutes} minutes`);
         
         // Return total minutes
         return totalMinutes;
@@ -892,15 +934,27 @@ export default {
       this.showCreateScheduleModal = true;
     },
     createSchedule() {
+      // Validate fields
+      if (!this.newSchedule.semester || !this.newSchedule.day || !this.newSchedule.labRoom || !this.newSchedule.courseCode || this.scheduleTypes.length === 0) {
+        alert('Please fill in all required fields and select at least one schedule type');
+        return;
+      }
+      
+      if (!this.newSchedule.startHour || !this.newSchedule.endHour) {
+        alert('Please select start and end times');
+        return;
+      }
+      
+      // Format time strings
       const startTime = `${this.newSchedule.startHour}:${this.newSchedule.startMinute} ${this.newSchedule.startPeriod}`;
       const endTime = `${this.newSchedule.endHour}:${this.newSchedule.endMinute} ${this.newSchedule.endPeriod}`;
       
+      // Convert to minutes for validation
       const startMinutes = this.convertTimeToMinutes(startTime);
       const endMinutes = this.convertTimeToMinutes(endTime);
       const minStartTime = this.convertTimeToMinutes('7:30 AM');
       const maxEndTime = this.convertTimeToMinutes('8:00 PM');
       
-      // Validate time range
       if (startMinutes < minStartTime) {
         alert('Schedule cannot start before 7:30 AM');
         return;
@@ -913,6 +967,75 @@ export default {
       
       if (endMinutes <= startMinutes) {
         alert('End time must be after start time');
+        return;
+      }
+
+      // Check for overlapping schedules in the SAME SEMESTER, DAY, AND LAB ROOM
+      const existingSchedules = this.allSchedules.filter(schedule => 
+        schedule.semester === this.newSchedule.semester &&
+        schedule.day === this.newSchedule.day && 
+        schedule.labRoom === this.newSchedule.labRoom &&
+        !schedule.isDeleted
+      );
+
+      console.log('All existing schedules in this SEMESTER/LAB/DAY:', existingSchedules);
+      console.log('Checking for conflicts with new schedule in semester:', this.newSchedule.semester);
+
+      // ======= IMPROVED OVERLAP DETECTION LOGIC =========
+      let hasOverlap = false;
+      for (const schedule of existingSchedules) {
+        // Convert string times to minutes for precise comparison
+        const existingStartMinutes = this.convertTimeToMinutes(schedule.startTime);
+        const existingEndMinutes = this.convertTimeToMinutes(schedule.endTime);
+        
+        console.log('Checking potential overlap between:');
+        console.log(`- New schedule: ${startTime} to ${endTime} (${startMinutes} to ${endMinutes} minutes)`);
+        console.log(`- Existing: ${schedule.startTime} to ${schedule.endTime} (${existingStartMinutes} to ${existingEndMinutes} minutes)`);
+        
+        // Case 1: New schedule starts during existing schedule
+        // (newStart >= existingStart && newStart < existingEnd)
+        const newStartsDuringExisting = 
+          startMinutes >= existingStartMinutes && 
+          startMinutes < existingEndMinutes;
+        
+        // Case 2: New schedule ends during existing schedule
+        // (newEnd > existingStart && newEnd <= existingEnd)
+        const newEndsDuringExisting = 
+          endMinutes > existingStartMinutes && 
+          endMinutes <= existingEndMinutes;
+        
+        // Case 3: New schedule completely contains existing schedule
+        // (newStart <= existingStart && newEnd >= existingEnd)
+        const newContainsExisting = 
+          startMinutes <= existingStartMinutes && 
+          endMinutes >= existingEndMinutes;
+        
+        // No overlap only when:
+        // 1. New schedule ends at or before existing schedule starts
+        // 2. OR New schedule starts at or after existing schedule ends
+        const noOverlap = 
+          endMinutes <= existingStartMinutes || 
+          startMinutes >= existingEndMinutes;
+        
+        // For debugging
+        const overlapResult = {
+          newStartsDuringExisting,
+          newEndsDuringExisting,
+          newContainsExisting,
+          noOverlap,
+          hasOverlap: !noOverlap
+        };
+        
+        console.log('Overlap check results:', overlapResult);
+        
+        if (!noOverlap) {
+          hasOverlap = true;
+          break;
+        }
+      }
+
+      if (hasOverlap) {
+        alert(`Cannot create schedule at this time slot. There is already a schedule for ${this.newSchedule.day} in ${this.newSchedule.labRoom} that overlaps with ${startTime} - ${endTime}.`);
         return;
       }
       
@@ -1123,19 +1246,19 @@ export default {
       
       // Create sample data exactly matching the format in the screenshot
       const sampleData = [
-        { A: "Course Code", B: "Course Name", C: "Year and Section" },
-        { A: "FW123.23", B: "Ignatian Spirituality & Christian Life 1", C: "IT-1A" },
-        { A: "FW123.23", B: "Ignatian Spirituality & Christian Life 1", C: "IT-1B" },
-        { A: "FW123.23", B: "Ignatian Spirituality & Christian Life 1", C: "CS-1A" },
-        { A: "GEC123.23", B: "Science, Technology & Society", C: "IT-1A" },
-        { A: "GEC123.23", B: "Science, Technology & Society", C: "IT-1B" },
-        { A: "GEC123.23", B: "Science, Technology & Society", C: "CS-1A" },
-        { A: "GEC112.23", B: "Mathematics in the Modern World", C: "IT-1A" },
-        { A: "GEC112.23", B: "Mathematics in the Modern World", C: "IT-1B" },
-        { A: "GEC112.23", B: "Mathematics in the Modern World", C: "CS-1A" },
-        { A: "CC103.23", B: "Introduction to Computing", C: "IT-1A" },
-        { A: "CC103.23", B: "Introduction to Computing", C: "IT-1B" },
-        { A: "CC103.23", B: "Introduction to Computing", C: "CS-1A" }
+        { A: "Course Code", B: "Course Name", C: "Year and Section", D: "Semester" },
+        { A: "FW123.23", B: "Ignatian Spirituality & Christian Life 1", C: "IT-1A", D: "1st Sem" },
+        { A: "FW123.23", B: "Ignatian Spirituality & Christian Life 1", C: "IT-1B", D: "1st Sem" },
+        { A: "FW123.23", B: "Ignatian Spirituality & Christian Life 1", C: "CS-1A", D: "1st Sem" },
+        { A: "GEC123.23", B: "Science, Technology & Society", C: "IT-1A", D: "1st Sem" },
+        { A: "GEC123.23", B: "Science, Technology & Society", C: "IT-1B", D: "1st Sem" },
+        { A: "GEC123.23", B: "Science, Technology & Society", C: "CS-1A", D: "1st Sem" },
+        { A: "GEC112.23", B: "Mathematics in the Modern World", C: "IT-1A", D: "2nd Sem" },
+        { A: "GEC112.23", B: "Mathematics in the Modern World", C: "IT-1B", D: "2nd Sem" },
+        { A: "GEC112.23", B: "Mathematics in the Modern World", C: "CS-1A", D: "2nd Sem" },
+        { A: "CC103.23", B: "Introduction to Computing", C: "IT-1A", D: "2nd Sem" },
+        { A: "CC103.23", B: "Introduction to Computing", C: "IT-1B", D: "2nd Sem" },
+        { A: "CC103.23", B: "Introduction to Computing", C: "CS-1A", D: "2nd Sem" }
       ];
       
       // Create a worksheet from the data
@@ -1145,7 +1268,8 @@ export default {
       const colWidths = [
         { wch: 15 }, // A: Course Code
         { wch: 40 }, // B: Course Name
-        { wch: 15 }  // C: Year and Section
+        { wch: 15 }, // C: Year and Section
+        { wch: 15 }  // D: Semester
       ];
       
       ws['!cols'] = colWidths;
@@ -1233,6 +1357,7 @@ export default {
             const courseCodeKey = keys.find(k => k.toLowerCase().includes('code'));
             const courseNameKey = keys.find(k => k.toLowerCase().includes('name'));
             const sectionKey = keys.find(k => k.toLowerCase().includes('section') || k.toLowerCase().includes('year'));
+            const semesterKey = keys.find(k => k.toLowerCase().includes('semester'));
             
             if (!courseCodeKey || !courseNameKey) {
               console.warn(`Row ${index + 1} missing required columns:`, row);
@@ -1243,20 +1368,18 @@ export default {
             const code = row[courseCodeKey];
             const name = row[courseNameKey];
             const section = sectionKey ? row[sectionKey] : null;
+            const semester = semesterKey ? row[semesterKey] : null;
             
             if (!code || !name) {
               console.warn(`Row ${index + 1} has empty code or name:`, row);
               return;
             }
             
-            let displayName = name.toString();
-            if (section) {
-              displayName = `${displayName} - ${section}`;
-            }
-            
             importedCourses.push({
               code: code.toString(),
-              name: displayName
+              name: name.toString(),
+              section: section ? section.toString() : '',
+              semester: semester ? semester.toString() : ''
             });
           });
           
@@ -1321,19 +1444,33 @@ export default {
           // Format the course data to match the screenshot format
           const formattedCode = course.code.toString().trim();
           let formattedName = course.name.toString().trim();
+          const formattedSemester = course.semester ? course.semester.toString().trim() : '';
+          const section = course.section ? course.section.toString().trim() : '';
           
-          console.log(`Processing course ${index+1}:`, { code: formattedCode, name: formattedName });
+          console.log(`Processing course ${index+1}:`, { 
+            code: formattedCode, 
+            name: formattedName, 
+            semester: formattedSemester,
+            section: section
+          });
           
-          // Add as a new course 
-          console.log(`Adding course: ${formattedCode} - ${formattedName}`);
+          // Add as a new course
+          // If section exists, ensure it's part of the name for filtering
+          const nameWithSection = section ? `${formattedName} - ${section}` : formattedName;
+          console.log(`Adding course: ${formattedCode} - ${nameWithSection} (${formattedSemester})`);
+          
           this.coursesOffered.push({
             code: formattedCode,
-            name: formattedName
+            name: nameWithSection,
+            semester: formattedSemester,
+            section: section
           });
           
           importedCourses.push({
             code: formattedCode,
-            name: formattedName
+            name: nameWithSection,
+            semester: formattedSemester,
+            section: section
           });
         } else {
           console.warn(`Skipping course at index ${index} due to missing code or name:`, course);
@@ -1385,6 +1522,11 @@ export default {
     },
     clearAllSchedules() {
       try {
+        // Confirm before clearing
+        if (!confirm('Are you sure you want to clear ALL schedules? This cannot be undone.')) {
+          return;
+        }
+        
         // Clear all schedule-related data from localStorage
         localStorage.removeItem('labSchedules');
         localStorage.removeItem('sysadmin_schedules');
@@ -1399,6 +1541,9 @@ export default {
         
         console.log('All schedules cleared');
         alert('All schedules have been cleared successfully');
+        
+        // Reload the page to ensure everything is reset
+        window.location.reload();
       } catch (error) {
         console.error('Error clearing schedules:', error);
         alert('Error clearing schedules. Please try again.');
@@ -1472,43 +1617,123 @@ export default {
     },
     
     updateSchedule() {
-      // Only allow updates to draft schedules
-      if (this.selectedSchedule.status !== 'draft') {
-        alert('Only draft schedules can be edited. This schedule is already ' + this.selectedSchedule.status);
+      // Validate fields
+      if (!this.editSchedule.semester || !this.editSchedule.day || !this.editSchedule.labRoom || !this.editSchedule.courseCode) {
+        alert('Please fill in all required fields');
+        return;
+      }
+      
+      if (!this.editSchedule.startHour || !this.editSchedule.endHour) {
+        alert('Please select start and end times');
+        return;
+      }
+      
+      // Format time strings
+      const startTime = `${this.editSchedule.startHour}:${this.editSchedule.startMinute} ${this.editSchedule.startPeriod}`;
+      const endTime = `${this.editSchedule.endHour}:${this.editSchedule.endMinute} ${this.editSchedule.endPeriod}`;
+      
+      // Convert to minutes for validation
+      const startMinutes = this.convertTimeToMinutes(startTime);
+      const endMinutes = this.convertTimeToMinutes(endTime);
+      const minStartTime = this.convertTimeToMinutes('7:30 AM');
+      const maxEndTime = this.convertTimeToMinutes('8:00 PM');
+      
+      if (startMinutes < minStartTime) {
+        alert('Schedule cannot start before 7:30 AM');
+        return;
+      }
+      
+      if (endMinutes > maxEndTime) {
+        alert('Schedule cannot end after 8:00 PM');
+        return;
+      }
+      
+      if (endMinutes <= startMinutes) {
+        alert('End time must be after start time');
         return;
       }
 
-      const startTime = this.editSchedule.startHour ? 
-        `${this.editSchedule.startHour}:${this.editSchedule.startMinute} ${this.editSchedule.startPeriod}` :
-        this.selectedSchedule.startTime;
+      // Check for overlapping schedules in the SAME SEMESTER, DAY, AND LAB ROOM, excluding the current schedule being edited
+      const existingSchedules = this.allSchedules.filter(schedule => 
+        schedule.semester === this.editSchedule.semester &&
+        schedule.day === this.editSchedule.day && 
+        schedule.labRoom === this.editSchedule.labRoom &&
+        schedule.id !== this.selectedSchedule.id && // Exclude the current schedule being edited
+        !schedule.isDeleted
+      );
+
+      console.log('All existing schedules in this SEMESTER/LAB/DAY for edit:', existingSchedules);
+      console.log('Checking for conflicts with updated schedule in semester:', this.editSchedule.semester);
+
+      // ======= IMPROVED OVERLAP DETECTION LOGIC =========
+      let hasOverlap = false;
+      for (const schedule of existingSchedules) {
+        // Convert string times to minutes for precise comparison
+        const existingStartMinutes = this.convertTimeToMinutes(schedule.startTime);
+        const existingEndMinutes = this.convertTimeToMinutes(schedule.endTime);
         
-      const endTime = this.editSchedule.endHour ? 
-        `${this.editSchedule.endHour}:${this.editSchedule.endMinute} ${this.editSchedule.endPeriod}` :
-        this.selectedSchedule.endTime;
-      
-      // Only validate time if both start and end times are being updated
-      if (this.editSchedule.startHour && this.editSchedule.endHour) {
-        const startMinutes = this.convertTimeToMinutes(startTime);
-        const endMinutes = this.convertTimeToMinutes(endTime);
+        console.log('Checking potential overlap for edit between:');
+        console.log(`- New schedule: ${startTime} to ${endTime} (${startMinutes} to ${endMinutes} minutes)`);
+        console.log(`- Existing: ${schedule.startTime} to ${schedule.endTime} (${existingStartMinutes} to ${existingEndMinutes} minutes)`);
         
-        if (endMinutes <= startMinutes) {
-          alert('End time must be after start time');
-          return;
+        // Case 1: New schedule starts during existing schedule
+        // (newStart >= existingStart && newStart < existingEnd)
+        const newStartsDuringExisting = 
+          startMinutes >= existingStartMinutes && 
+          startMinutes < existingEndMinutes;
+        
+        // Case 2: New schedule ends during existing schedule
+        // (newEnd > existingStart && newEnd <= existingEnd)
+        const newEndsDuringExisting = 
+          endMinutes > existingStartMinutes && 
+          endMinutes <= existingEndMinutes;
+        
+        // Case 3: New schedule completely contains existing schedule
+        // (newStart <= existingStart && newEnd >= existingEnd)
+        const newContainsExisting = 
+          startMinutes <= existingStartMinutes && 
+          endMinutes >= existingEndMinutes;
+        
+        // No overlap only when:
+        // 1. New schedule ends at or before existing schedule starts
+        // 2. OR New schedule starts at or after existing schedule ends
+        const noOverlap = 
+          endMinutes <= existingStartMinutes || 
+          startMinutes >= existingEndMinutes;
+        
+        // For debugging
+        const overlapResult = {
+          newStartsDuringExisting,
+          newEndsDuringExisting,
+          newContainsExisting,
+          noOverlap,
+          hasOverlap: !noOverlap
+        };
+        
+        console.log('Overlap check results for edit:', overlapResult);
+        
+        if (!noOverlap) {
+          hasOverlap = true;
+          break;
         }
       }
+
+      if (hasOverlap) {
+        alert(`Cannot update schedule to this time slot. There is already a schedule for ${this.editSchedule.day} in ${this.editSchedule.labRoom} that overlaps with ${startTime} - ${endTime}.`);
+        return;
+      }
       
-      const selectedCourse = this.editSchedule.courseCode ? 
-        this.availableCoursesOffered.find(course => course.code === this.editSchedule.courseCode) :
-        this.availableCoursesOffered.find(course => course.code === this.selectedSchedule.courseCode);
-        
-      const courseName = selectedCourse ? selectedCourse.name : this.selectedSchedule.courseName;
+      // Find course name
+      const selectedCourse = this.availableCoursesOffered.find(course => course.code === this.editSchedule.courseCode);
+      const courseName = selectedCourse ? selectedCourse.name : '';
       
+      // Calculate duration in minutes
       const durationMinutes = this.calculateDurationMinutes(startTime, endTime);
       
-      // Create updated schedule by merging existing data with changes
+      // Create updated schedule object
       const updatedSchedule = {
         ...this.selectedSchedule,
-        title: `${this.editSchedule.courseCode || this.selectedSchedule.courseCode} (${this.editSchedule.types.length > 0 ? this.editSchedule.types.join('/') : this.selectedSchedule.types.join('/')})`,
+        title: `${this.editSchedule.courseCode} (${this.editSchedule.types.length > 0 ? this.editSchedule.types.join('/') : this.selectedSchedule.types.join('/')})`,
         details: `${courseName}\n${this.editSchedule.section || this.selectedSchedule.section}\n${this.editSchedule.instructorName || this.selectedSchedule.instructorName}`,
         semester: this.editSchedule.semester || this.selectedSchedule.semester,
         section: this.editSchedule.section || this.selectedSchedule.section,
@@ -1621,9 +1846,12 @@ export default {
       this.showFileUploadModal = true;
     },
     clearCoursesOffered() {
-      console.log('Clearing coursesOffered from localStorage');
-      localStorage.removeItem('coursesOffered');
-      this.coursesOffered = [];
+      if (confirm('Are you sure you want to clear all course offerings? This cannot be undone.')) {
+        console.log('Clearing coursesOffered from localStorage');
+        localStorage.removeItem('coursesOffered');
+        this.coursesOffered = [];
+        alert('Course offerings have been cleared successfully.');
+      }
     },
     filterSchedulesBySemester() {
       console.log('Filtering by semester:', this.selectedSemester);
@@ -1668,15 +1896,15 @@ export default {
       }
     },
     sendAllForApproval() {
-      // Get all draft schedules for current semester and lab
-      const draftSchedules = this.schedules.filter(schedule => 
+      // Get all draft schedules for the current semester across ALL labs
+      const draftSchedules = this.allSchedules.filter(schedule => 
         schedule.status === 'draft' &&
-        schedule.semester === this.selectedSemester &&
-        schedule.labRoom === this.selectedLab
+        schedule.semester === this.selectedSemester
+        // No labRoom filter here, to include all labs
       );
 
       if (draftSchedules.length === 0) {
-        alert('No draft schedules to send for approval');
+        alert('No draft schedules to send for approval for the selected semester');
         return;
       }
 
@@ -1714,7 +1942,7 @@ export default {
         // Refresh the schedules display
         this.filterSchedulesBySemester();
         
-        alert('All schedules have been sent for approval');
+        alert(`All schedules for ${this.selectedSemester} have been sent for approval`);
       } catch (error) {
         console.error('Error sending schedules for approval:', error);
         alert('Error sending schedules for approval. Please try again.');
@@ -1746,6 +1974,59 @@ export default {
         this.newSchedule.endMinute = '00';
         this.newSchedule.endPeriod = 'PM';
       }
+    },
+    handleInstructorSelect() {
+      if (this.newSchedule.instructorName === 'add_new') {
+        this.showAddInstructorModal = true;
+        // Reset the selected value so dropdown still works if they cancel
+        this.newSchedule.instructorName = '';
+      }
+    },
+    addNewInstructor() {
+      if (this.newInstructorName.trim()) {
+        const newInstructor = this.newInstructorName.trim();
+        
+        // Add to instructors array
+        this.instructors.push(newInstructor);
+        
+        // Sort instructors alphabetically
+        this.instructors.sort();
+        
+        // Save to localStorage
+        localStorage.setItem('instructors', JSON.stringify(this.instructors));
+        
+        // Set the new instructor as selected based on which form is open
+        if (this.showCreateScheduleModal) {
+          this.newSchedule.instructorName = newInstructor;
+        } else if (this.showEditScheduleModal) {
+          this.editSchedule.instructorName = newInstructor;
+        }
+        
+        // Close modal and reset
+        this.showAddInstructorModal = false;
+        this.newInstructorName = '';
+      }
+    },
+    loadInstructorsFromStorage() {
+      try {
+        const savedInstructors = localStorage.getItem('instructors');
+        if (savedInstructors) {
+          const parsedInstructors = JSON.parse(savedInstructors);
+          if (Array.isArray(parsedInstructors) && parsedInstructors.length > 0) {
+            this.instructors = parsedInstructors;
+            console.log(`Loaded ${parsedInstructors.length} instructors from localStorage`);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading instructors from localStorage:', error);
+      }
+    },
+    handleEditInstructorSelect() {
+      if (this.editSchedule.instructorName === 'add_new') {
+        this.showAddInstructorModal = true;
+        // Reset the selected value so dropdown still works if they cancel
+        this.editSchedule.instructorName = '';
+      }
     }
   },
   computed: {
@@ -1770,31 +2051,69 @@ export default {
     },
     // Filter out courses that are already in use in any schedule
     availableCoursesOffered() {
+      // Start with all courses
+      let filteredCourses = [...this.coursesOffered];
+      
+      // First filter by the selected semester if one is selected in create schedule modal
+      if (this.showCreateScheduleModal && this.newSchedule.semester) {
+        // Extract the semester part properly based on the format
+        let selectedSemester;
+        if (this.newSchedule.semester.includes('Summer')) {
+          // For Summer semesters, just use "Summer"
+          selectedSemester = "Summer";
+        } else {
+          // For regular semesters (1st Sem, 2nd Sem), extract the semester part
+          selectedSemester = this.newSchedule.semester.split(' ')[0] + ' ' + this.newSchedule.semester.split(' ')[1];
+        }
+        
+        filteredCourses = filteredCourses.filter(course => 
+          course.semester && course.semester.includes(selectedSemester)
+        );
+      }
+      
+      // Then filter by the selected section if one is selected in create schedule modal
+      if (this.showCreateScheduleModal && this.newSchedule.section) {
+        filteredCourses = filteredCourses.filter(course => 
+          course.name && course.name.includes(this.newSchedule.section)
+        );
+      }
+      
       if (!this.schedules || this.schedules.length === 0) {
-        return this.coursesOffered;
+        return filteredCourses;
       }
 
       // If we're in edit mode, we need to include the course being edited
-      const excludedCourseCode = this.showEditScheduleModal && this.selectedSchedule ? 
-                                this.selectedSchedule.courseCode : null;
+      const excludedCourseId = this.showEditScheduleModal && this.selectedSchedule ? 
+                              this.selectedSchedule.id : null;
       
-      // Get all course codes that are currently used in schedules
-      const usedCourseCodes = this.schedules
-        .filter(schedule => schedule.courseCode !== excludedCourseCode)
-        .map(schedule => schedule.courseCode);
+      // Create a list of used course code and section combinations
+      const usedCombinations = this.schedules
+        .filter(schedule => schedule.id !== excludedCourseId)
+        .map(schedule => ({
+          code: schedule.courseCode, 
+          section: schedule.section
+        }));
       
-      // Create a Set for faster lookups
-      const usedCourseSet = new Set(usedCourseCodes);
-
-      // Filter out courses that are already used in any schedule
-      return this.coursesOffered.filter(course => {
-        // If we're in edit mode and this is the current course, keep it
-        if (course.code === excludedCourseCode) {
+      // Filter out courses that are already used for the SAME SECTION
+      return filteredCourses.filter(course => {
+        // If we're in edit mode and this is the current course being edited, keep it
+        if (this.showEditScheduleModal && 
+            this.selectedSchedule && 
+            course.code === this.selectedSchedule.courseCode) {
           return true;
         }
         
-        // Filter out the course if it's already used in any schedule
-        return !usedCourseSet.has(course.code);
+        // Get the current section we're trying to create a schedule for
+        const currentSection = this.showCreateScheduleModal ? this.newSchedule.section : 
+                              (this.showEditScheduleModal ? this.editSchedule.section : '');
+        
+        // Check if this exact course+section combination is already used
+        const isCombinationUsed = usedCombinations.some(used => 
+          used.code === course.code && used.section === currentSection
+        );
+        
+        // Keep the course if it's not already used for this section
+        return !isCombinationUsed;
       });
     }
   },
@@ -1804,6 +2123,9 @@ export default {
     // Load courses from localStorage instead of clearing them
     this.loadCoursesOfferedFromStorage();
     console.log(`Loaded ${this.coursesOffered.length} courses for the dropdown menu`);
+    
+    // Load instructors from localStorage
+    this.loadInstructorsFromStorage();
     
     // Then load schedules and generate week days
     this.loadSchedulesFromStorage();
@@ -2102,8 +2424,11 @@ h1 {
   display: flex;
   flex: 1;
   position: relative;
-  border-left: 1px solid #e0e0e0;
   min-height: calc(60px * 26);
+}
+
+.schedule-content::before {
+  display: none;
 }
 
 .day-column {
@@ -2161,6 +2486,7 @@ h1 {
   box-sizing: border-box;
   transition: all 0.2s ease;
   cursor: pointer;
+  margin: 0;
 }
 
 .schedule-item:hover {
@@ -2225,8 +2551,7 @@ h1 {
   left: 0;
   right: 0;
   bottom: 0;
-  background-image: linear-gradient(to right, #e0e0e0 1px, transparent 1px);
-  background-size: calc(100% / 6) 100%;
+  background-image: none;
   pointer-events: none;
   z-index: 1;
 }
@@ -2744,5 +3069,127 @@ h1 {
 
 .send-all-approval-btn i {
   font-size: 1rem;
+}
+
+.clear-courses-btn {
+  background-color: #ff5722;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.clear-courses-btn i {
+  font-size: 12px;
+}
+
+.clear-courses-btn:hover {
+  background-color: #e64a19;
+}
+
+/* Add New Instructor Modal Styles */
+.instructor-modal {
+  max-width: 450px;
+  border-radius: 10px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.instructor-modal-header {
+  background-color: #DD385A;
+  color: white;
+  padding: 15px 20px;
+  border-bottom: none;
+}
+
+.instructor-modal-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.instructor-modal-body {
+  padding: 25px;
+  background-color: #f8f9fa;
+}
+
+.instructor-input {
+  width: 100%;
+  padding: 12px 15px 12px 40px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 15px;
+  transition: all 0.3s;
+  background-color: white;
+}
+
+.instructor-input:focus {
+  border-color: #DD385A;
+  box-shadow: 0 0 0 3px rgba(221, 56, 90, 0.2);
+  outline: none;
+}
+
+.input-icon {
+  position: absolute;
+  left: 12px;
+  top: 39px;
+  color: #888;
+}
+
+.instructor-modal-footer {
+  padding: 15px 20px;
+  background-color: #f8f9fa;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.instructor-cancel-btn {
+  background-color: #f1f1f1;
+  color: #555;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.instructor-cancel-btn:hover {
+  background-color: #e1e1e1;
+}
+
+.instructor-add-btn {
+  background-color: #DD385A;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.instructor-add-btn:hover {
+  background-color: #c62e4e;
+}
+
+.instructor-add-btn:disabled {
+  background-color: #f5a5b5;
+  cursor: not-allowed;
+}
+
+.instructor-add-btn i {
+  font-size: 14px;
 }
 </style>

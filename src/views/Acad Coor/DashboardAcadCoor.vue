@@ -170,6 +170,12 @@ export default {
   },
   mounted() {
     this.loadSchedulesFromStorage();
+    
+    // No longer automatically initialize sample schedules
+    // if (this.schedules.length === 0) {
+    //   this.initializeSchedules();
+    // }
+    
     this.generateWeekDays();
     this.getUserName();
   },
@@ -370,13 +376,43 @@ export default {
       try {
         this.schedules = []; // Initialize as empty array
         
+        // Load academic coordinator schedules
+        const acadCoorSchedules = localStorage.getItem('acadcoor_schedules');
+        if (acadCoorSchedules) {
+          const parsedAcadCoorSchedules = JSON.parse(acadCoorSchedules);
+          if (Array.isArray(parsedAcadCoorSchedules)) {
+            const approvedAcadCoorSchedules = parsedAcadCoorSchedules.filter(schedule => schedule.status === 'approved');
+            this.schedules = [...this.schedules, ...approvedAcadCoorSchedules];
+          }
+        }
+
         // Load lab schedules
-        const labSchedules = localStorage.getItem('labSchedules');
+        const labSchedules = localStorage.getItem('lab_schedules');
         if (labSchedules) {
           const parsedLabSchedules = JSON.parse(labSchedules);
           if (Array.isArray(parsedLabSchedules)) {
             const approvedLabSchedules = parsedLabSchedules.filter(schedule => schedule.status === 'approved');
             this.schedules = [...this.schedules, ...approvedLabSchedules];
+          }
+        }
+
+        // Load system admin schedules
+        const sysAdminSchedules = localStorage.getItem('sysadmin_schedules');
+        if (sysAdminSchedules) {
+          const parsedSysAdminSchedules = JSON.parse(sysAdminSchedules);
+          if (Array.isArray(parsedSysAdminSchedules)) {
+            const approvedSysAdminSchedules = parsedSysAdminSchedules.filter(schedule => schedule.status === 'approved');
+            this.schedules = [...this.schedules, ...approvedSysAdminSchedules];
+          }
+        }
+
+        // Load dean schedules
+        const deanSchedules = localStorage.getItem('dean_schedules');
+        if (deanSchedules) {
+          const parsedDeanSchedules = JSON.parse(deanSchedules);
+          if (Array.isArray(parsedDeanSchedules)) {
+            const approvedDeanSchedules = parsedDeanSchedules.filter(schedule => schedule.status === 'approved');
+            this.schedules = [...this.schedules, ...approvedDeanSchedules];
           }
         }
 
@@ -387,26 +423,6 @@ export default {
           if (Array.isArray(parsedViewerSchedules)) {
             const approvedViewerSchedules = parsedViewerSchedules.filter(schedule => schedule.status === 'approved');
             this.schedules = [...this.schedules, ...approvedViewerSchedules];
-          }
-        }
-
-        // Load generic schedules
-        const genericSchedules = localStorage.getItem('generic_schedules');
-        if (genericSchedules) {
-          const parsedGenericSchedules = JSON.parse(genericSchedules);
-          if (Array.isArray(parsedGenericSchedules)) {
-            const approvedGenericSchedules = parsedGenericSchedules.filter(schedule => schedule.status === 'approved');
-            this.schedules = [...this.schedules, ...approvedGenericSchedules];
-          }
-        }
-
-        // Load academic coordinator schedules
-        const acadSchedules = localStorage.getItem('acad_coor_schedules');
-        if (acadSchedules) {
-          const parsedAcadSchedules = JSON.parse(acadSchedules);
-          if (Array.isArray(parsedAcadSchedules)) {
-            const approvedAcadSchedules = parsedAcadSchedules.filter(schedule => schedule.status === 'approved');
-            this.schedules = [...this.schedules, ...approvedAcadSchedules];
           }
         }
 
@@ -423,9 +439,17 @@ export default {
         });
 
         this.schedules = uniqueSchedules;
+
+        // If no schedules found, initialize with mock data
+        if (this.schedules.length === 0) {
+          this.initializeMockSchedules();
+          this.loadSchedulesFromStorage(); // Reload after initialization
+        }
       } catch (error) {
         console.error('Error loading schedules from localStorage:', error);
         this.schedules = []; // Ensure schedules is an array even if loading fails
+        this.initializeMockSchedules();
+        this.loadSchedulesFromStorage(); // Reload after initialization
       }
     },
     previousMonth() {
@@ -478,6 +502,53 @@ export default {
           console.error('Error parsing user data:', error);
         }
       }
+    },
+    initializeMockSchedules() {
+      // Sample data that matches the Dean dashboard format
+      const mockSchedules = [
+        {
+          id: 1,
+          labRoom: 'L301',
+          day: 'Monday',
+          startTime: '8:00 AM',
+          endTime: '11:00 AM',
+          title: 'GEC123',
+          courseName: 'Science, Technology & Society',
+          section: 'BSIT-1B',
+          instructorName: 'Dr. Maria Santos',
+          color: '#DD385A',
+          status: 'approved'
+        },
+        {
+          id: 2,
+          labRoom: 'L301',
+          day: 'Tuesday',
+          startTime: '8:00 AM',
+          endTime: '10:00 AM',
+          title: 'FFW123 (Lab)',
+          courseName: 'Ignatian Spirituality & Christian Life 1',
+          section: 'BSIT-1A',
+          instructorName: 'Fr. James Rodriguez',
+          color: '#DD385A',
+          status: 'approved'
+        },
+        {
+          id: 3,
+          labRoom: 'L301',
+          day: 'Wednesday',
+          startTime: '10:00 AM',
+          endTime: '12:00 PM',
+          title: 'Network101',
+          courseName: 'Networking',
+          section: 'BSIT-2A',
+          instructorName: 'Engr. Roberto Dela Cruz',
+          color: '#4169E1',
+          status: 'approved'
+        }
+      ];
+      
+      localStorage.setItem('acadcoor_schedules', JSON.stringify(mockSchedules));
+      console.log('Mock schedules initialized for Academic Coordinator');
     }
   }
 }
@@ -764,59 +835,23 @@ export default {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  width: 100%;
-  height: 100%;
-  padding: 8px;
-  box-sizing: border-box;
   cursor: pointer;
-  text-align: center;
-}
-
-.schedule-title {
-  font-weight: 600;
-  font-size: 0.85rem;
-  margin-bottom: 0.25rem;
 }
 
 .schedule-lab {
-  font-weight: 600;
-  font-size: 0.8rem;
-  margin-bottom: 0.25rem;
-  background-color: rgba(0, 0, 0, 0.15);
-  padding: 2px 5px;
-  border-radius: 3px;
-  display: inline-block;
+  font-size: 0.7rem;
+  opacity: 0.9;
+  margin-bottom: 0.1rem;
 }
 
 .schedule-time {
-  font-size: 0.75rem;
-  opacity: 0.9;
-  margin-bottom: 0.25rem;
+  font-size: 0.7rem;
+  margin-bottom: 0.2rem;
+}
+
+.schedule-title {
+  font-size: 0.8rem;
   font-weight: 500;
-}
-
-.schedule-details {
-  font-size: 0.75rem;
-  opacity: 0.9;
-  white-space: pre-line;
-  line-height: 1.4;
-}
-
-.table-body::-webkit-scrollbar {
-  width: 8px;
-}
-
-.table-body::-webkit-scrollbar-track {
-  background: #f1f1f1;
-}
-
-.table-body::-webkit-scrollbar-thumb {
-  background: #ccc;
-  border-radius: 4px;
-}
-
-.table-body::-webkit-scrollbar-thumb:hover {
-  background: #999;
 }
 
 .schedule-popup {
@@ -827,32 +862,32 @@ export default {
   bottom: 0;
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
-  justify-content: center;
   align-items: center;
-  z-index: 1000;
+  justify-content: center;
+  z-index: 100;
 }
 
 .popup-content {
-  background-color: white;
+  background: white;
   border-radius: 8px;
-  width: 420px;
-  max-width: 90%;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
   overflow: hidden;
 }
 
 .popup-header {
-  background-color: #e91e63;
-  color: white;
-  padding: 1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 1rem 1.5rem;
+  background-color: #e91e63;
+  color: white;
 }
 
 .popup-header h3 {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   font-weight: 500;
 }
 
@@ -862,6 +897,7 @@ export default {
   color: white;
   font-size: 1.5rem;
   cursor: pointer;
+  padding: 0;
   line-height: 1;
 }
 
@@ -870,17 +906,52 @@ export default {
 }
 
 .detail-row {
-  margin-bottom: 0.75rem;
   display: flex;
+  margin-bottom: 1rem;
+}
+
+.detail-row:last-child {
+  margin-bottom: 0;
 }
 
 .detail-label {
+  width: 120px;
   font-weight: 500;
-  width: 100px;
   color: #666;
 }
 
 .detail-value {
   flex: 1;
+  color: #333;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-content {
+    flex-direction: column;
+  }
+  
+  .left-panel {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .content-wrapper {
+    padding: 1rem;
+  }
+  
+  .controls-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .search-box {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+  
+  .lab-dropdown-wrapper {
+    width: 100%;
+  }
 }
 </style>

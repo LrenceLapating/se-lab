@@ -56,6 +56,7 @@
             <option value="Academic Coordinator">Academic Coordinator</option>
             <option value="Lab InCharge">Lab InCharge</option>
             <option value="Faculty/Staff">Faculty/Staff</option>
+            <option value="Dean">Dean</option>
           </select>
         </div>
 

@@ -14,6 +14,7 @@ export function getDashboardPathForRole(role) {
     case 'Lab InCharge':
       return '/dashboard-lab';
     case 'Dean':
+      return '/dashboard-dean';
     case 'Faculty/Staff':
     case 'Student':
     default:
@@ -35,6 +36,7 @@ export function getProfilePathForRole(role) {
     case 'Lab InCharge':
       return '/user-profile-lab';
     case 'Dean':
+      return '/user-profile-dean';
     case 'Faculty/Staff':
     case 'Student':
     default:

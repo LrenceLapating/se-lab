@@ -36,10 +36,12 @@
                 <input type="text" placeholder="Search..." />
               </div>
               
-              <div class="lab-dropdown-wrapper">
-                <select v-model="selectedLab" class="lab-dropdown">
-                  <option v-for="lab in labs" :key="lab" :value="lab">{{ lab }}</option>
-                </select>
+              <div class="lab-controls">
+                <div class="lab-dropdown-wrapper">
+                  <select v-model="selectedLab" class="lab-dropdown" @change="labChanged">
+                    <option v-for="lab in labs" :key="lab" :value="lab">{{ lab }}</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -78,7 +80,7 @@
                             >
                               <div class="schedule-lab">{{ selectedLab }}</div>
                               <div class="schedule-time">{{ getScheduleTime(day.name, time) }}</div>
-                              <div class="course-title">{{ getScheduleTitle(day.name, time) }}</div>
+                              <div class="schedule-title">{{ getScheduleTitle(day.name, time) }}</div>
                             </div>
                           </div>
                         </div>
@@ -145,7 +147,7 @@ export default {
   },
   data() {
     return {
-      selectedLab: 'L202',
+      selectedLab: 'L201',
       labs: ['L201', 'L202', 'L203', 'L204', 'L205', 'IOT'],
       displayTimeSlots: [
         '7:30 AM', '8:00 AM', '8:30 AM', '9:00 AM', '9:30 AM', '10:00 AM',
@@ -169,21 +171,162 @@ export default {
     }
   },
   mounted() {
+    // First load approved schedules
     this.loadSchedulesFromStorage();
+    
+    // No longer automatically initialize sample schedules
+    // if (this.schedules.length === 0) {
+    //   console.log('DashboardLab: No schedules found, initializing schedule data');
+    //   this.initializeSchedules();
+    // }
+    
     this.generateWeekDays();
     this.getUserName();
   },
   methods: {
+    initializeSchedules() {
+      // This method is kept but no longer automatically initializes sample schedules
+      console.log('Schedule initialization is disabled. Please create schedules through the Schedule Management interface.');
+    },
+    initializeMockSchedules() {
+      // Sample data that matches the Dean dashboard format
+      const mockSchedules = [
+        {
+          id: 1,
+          labRoom: 'L101',
+          day: 'Monday',
+          startTime: '8:00 AM',
+          endTime: '11:00 AM',
+          title: 'GEC123',
+          courseName: 'Science, Technology & Society',
+          section: 'BSIT-1B',
+          instructorName: 'Dr. Maria Santos',
+          color: '#DD385A',
+          status: 'approved'
+        },
+        {
+          id: 2,
+          labRoom: 'L101',
+          day: 'Tuesday',
+          startTime: '8:00 AM',
+          endTime: '10:00 AM',
+          title: 'FFW123',
+          courseName: 'Ignatian Spirituality & Christian Life 1',
+          section: 'BSIT-1A',
+          instructorName: 'Fr. James Rodriguez',
+          color: '#DD385A',
+          status: 'approved'
+        },
+        {
+          id: 3,
+          labRoom: 'L101',
+          day: 'Wednesday',
+          startTime: '10:00 AM',
+          endTime: '12:00 PM',
+          title: 'NET101',
+          courseName: 'Networking',
+          section: 'BSIT-2A',
+          instructorName: 'Engr. Roberto Dela Cruz',
+          color: '#4169E1',
+          status: 'approved'
+        }
+      ];
+      
+      localStorage.setItem('lab_schedules', JSON.stringify(mockSchedules));
+      console.log('Mock schedules initialized for Lab InCharge');
+    },
+    loadSchedulesFromStorage() {
+      try {
+        this.schedules = []; // Initialize as empty array
+        
+        // Load lab schedules
+        const labSchedules = localStorage.getItem('lab_schedules');
+        if (labSchedules) {
+          const parsedLabSchedules = JSON.parse(labSchedules);
+          if (Array.isArray(parsedLabSchedules)) {
+            const approvedLabSchedules = parsedLabSchedules.filter(schedule => schedule.status === 'approved');
+            this.schedules = [...this.schedules, ...approvedLabSchedules];
+          }
+        }
+
+        // Load system admin schedules
+        const sysAdminSchedules = localStorage.getItem('sysadmin_schedules');
+        if (sysAdminSchedules) {
+          const parsedSysAdminSchedules = JSON.parse(sysAdminSchedules);
+          if (Array.isArray(parsedSysAdminSchedules)) {
+            const approvedSysAdminSchedules = parsedSysAdminSchedules.filter(schedule => schedule.status === 'approved');
+            this.schedules = [...this.schedules, ...approvedSysAdminSchedules];
+          }
+        }
+
+        // Load academic coordinator schedules
+        const acadCoorSchedules = localStorage.getItem('acadcoor_schedules');
+        if (acadCoorSchedules) {
+          const parsedAcadCoorSchedules = JSON.parse(acadCoorSchedules);
+          if (Array.isArray(parsedAcadCoorSchedules)) {
+            const approvedAcadCoorSchedules = parsedAcadCoorSchedules.filter(schedule => schedule.status === 'approved');
+            this.schedules = [...this.schedules, ...approvedAcadCoorSchedules];
+          }
+        }
+
+        // Load dean schedules
+        const deanSchedules = localStorage.getItem('dean_schedules');
+        if (deanSchedules) {
+          const parsedDeanSchedules = JSON.parse(deanSchedules);
+          if (Array.isArray(parsedDeanSchedules)) {
+            const approvedDeanSchedules = parsedDeanSchedules.filter(schedule => schedule.status === 'approved');
+            this.schedules = [...this.schedules, ...approvedDeanSchedules];
+          }
+        }
+
+        // Load viewer schedules
+        const viewerSchedules = localStorage.getItem('viewer_schedules');
+        if (viewerSchedules) {
+          const parsedViewerSchedules = JSON.parse(viewerSchedules);
+          if (Array.isArray(parsedViewerSchedules)) {
+            const approvedViewerSchedules = parsedViewerSchedules.filter(schedule => schedule.status === 'approved');
+            this.schedules = [...this.schedules, ...approvedViewerSchedules];
+          }
+        }
+
+        // De-duplicate schedules based on composite key (day + startTime + labRoom)
+        const uniqueSchedules = [];
+        const seen = new Set();
+        
+        this.schedules.forEach(schedule => {
+          const key = `${schedule.day}-${schedule.startTime}-${schedule.labRoom}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            uniqueSchedules.push(schedule);
+          }
+        });
+
+        this.schedules = uniqueSchedules;
+
+        // If no schedules found, initialize with mock data
+        if (this.schedules.length === 0) {
+          this.initializeMockSchedules();
+          this.loadSchedulesFromStorage(); // Reload after initialization
+        }
+      } catch (error) {
+        console.error('Error loading schedules from localStorage:', error);
+        this.schedules = []; // Ensure schedules is an array even if loading fails
+        this.initializeMockSchedules();
+        this.loadSchedulesFromStorage(); // Reload after initialization
+      }
+    },
     previousLab() {
       const currentIndex = this.labs.indexOf(this.selectedLab)
       if (currentIndex > 0) {
         this.selectedLab = this.labs[currentIndex - 1]
+        this.loadSchedulesFromStorage(); // Reload schedules for the new lab
       }
     },
     nextLab() {
       const currentIndex = this.labs.indexOf(this.selectedLab)
       if (currentIndex < this.labs.length - 1) {
         this.selectedLab = this.labs[currentIndex + 1]
+        this.loadSchedulesFromStorage(); // Reload schedules for the new lab
       }
     },
     generateWeekDays(date) {
@@ -367,59 +510,6 @@ export default {
         backgroundColor: schedules[0].color || '#DD385A'
       };
     },
-    loadSchedulesFromStorage() {
-      try {
-        this.schedules = []; // Initialize as empty array
-        
-        // Load lab schedules
-        const labSchedules = localStorage.getItem('labSchedules');
-        if (labSchedules) {
-          const parsedLabSchedules = JSON.parse(labSchedules);
-          if (Array.isArray(parsedLabSchedules)) {
-            const approvedLabSchedules = parsedLabSchedules.filter(schedule => schedule.status === 'approved');
-            this.schedules = [...this.schedules, ...approvedLabSchedules];
-          }
-        }
-
-        // Load viewer schedules
-        const viewerSchedules = localStorage.getItem('viewer_schedules');
-        if (viewerSchedules) {
-          const parsedViewerSchedules = JSON.parse(viewerSchedules);
-          if (Array.isArray(parsedViewerSchedules)) {
-            const approvedViewerSchedules = parsedViewerSchedules.filter(schedule => schedule.status === 'approved');
-            this.schedules = [...this.schedules, ...approvedViewerSchedules];
-          }
-        }
-
-        // Load generic schedules
-        const genericSchedules = localStorage.getItem('generic_schedules');
-        if (genericSchedules) {
-          const parsedGenericSchedules = JSON.parse(genericSchedules);
-          if (Array.isArray(parsedGenericSchedules)) {
-            const approvedGenericSchedules = parsedGenericSchedules.filter(schedule => schedule.status === 'approved');
-            this.schedules = [...this.schedules, ...approvedGenericSchedules];
-          }
-        }
-
-        // De-duplicate schedules based on composite key (day + startTime + labRoom)
-        const uniqueSchedules = [];
-        const seen = new Set();
-        
-        this.schedules.forEach(schedule => {
-          const key = `${schedule.day}-${schedule.startTime}-${schedule.labRoom}`;
-          if (!seen.has(key)) {
-            seen.add(key);
-            uniqueSchedules.push(schedule);
-          }
-        });
-
-        // Filter schedules for the lab in charge's assigned lab
-        this.schedules = uniqueSchedules.filter(schedule => schedule.labRoom === this.selectedLab);
-      } catch (error) {
-        console.error('Error loading schedules from localStorage:', error);
-        this.schedules = []; // Ensure schedules is an array even if loading fails
-      }
-    },
     previousMonth() {
       if (this.$refs.calendar) {
         this.$refs.calendar.previousMonth();
@@ -470,6 +560,22 @@ export default {
           console.error('Error parsing user data:', error);
         }
       }
+    },
+    labChanged() {
+      // When the lab changes, we need to filter the schedules again
+      console.log('Lab changed to:', this.selectedLab);
+      
+      // Load all schedules first
+      this.loadSchedulesFromStorage();
+      
+      // If no schedules were found after filtering, try to initialize some for this lab
+      if (this.schedules.length === 0) {
+        console.log(`No schedules found for ${this.selectedLab}, trying to initialize some`);
+        this.initializeSchedules();
+      }
+    },
+    refreshSchedules() {
+      this.loadSchedulesFromStorage();
     }
   }
 }
@@ -606,6 +712,12 @@ export default {
   outline: none;
   font-size: 0.9rem;
   width: 100%;
+}
+
+.lab-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
 }
 
 .lab-dropdown-wrapper {
@@ -746,67 +858,37 @@ export default {
   bottom: 0;
   background-color: #DD385A;
   color: white;
-  padding: 0.5rem;
+  padding: 0.25rem;
   overflow: hidden;
   z-index: 5;
 }
 
 .schedule-content {
+  height: 100%;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  width: 100%;
-  height: 100%;
-  padding: 8px;
-  box-sizing: border-box;
   cursor: pointer;
-  text-align: center;
-}
 
-.schedule-title {
-  font-weight: 600;
-  font-size: 0.85rem;
-  margin-bottom: 0.25rem;
 }
 
 .schedule-lab {
-  font-weight: 600;
-  font-size: 0.8rem;
-  margin-bottom: 0.25rem;
-  background-color: rgba(0, 0, 0, 0.15);
-  padding: 2px 5px;
-  border-radius: 3px;
-  display: inline-block;
+  font-size: 0.7rem;
+  opacity: 0.9;
+  margin-bottom: 0.1rem;
 }
 
 .schedule-time {
-  font-size: 0.75rem;
-  opacity: 0.9;
-  margin-bottom: 0.25rem;
+  font-size: 0.7rem;
+  margin-bottom: 0.2rem;
+}
+
+.schedule-title {
+  font-size: 0.85rem;
   font-weight: 500;
-}
-
-.schedule-details {
-  font-size: 0.75rem;
-  opacity: 0.9;
-  white-space: pre-wrap;
-}
-
-.table-body::-webkit-scrollbar {
-  width: 8px;
-}
-
-.table-body::-webkit-scrollbar-track {
-  background: #f1f1f1;
-}
-
-.table-body::-webkit-scrollbar-thumb {
-  background: #ccc;
-  border-radius: 4px;
-}
-
-.table-body::-webkit-scrollbar-thumb:hover {
-  background: #999;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .schedule-popup {
@@ -817,32 +899,32 @@ export default {
   bottom: 0;
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
-  justify-content: center;
   align-items: center;
-  z-index: 1000;
+  justify-content: center;
+  z-index: 100;
 }
 
 .popup-content {
-  background-color: white;
+  background: white;
   border-radius: 8px;
-  width: 420px;
-  max-width: 90%;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
   overflow: hidden;
 }
 
 .popup-header {
-  background-color: #e91e63;
-  color: white;
-  padding: 1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 1rem 1.5rem;
+  background-color: #e91e63;
+  color: white;
 }
 
 .popup-header h3 {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   font-weight: 500;
 }
 
@@ -852,6 +934,7 @@ export default {
   color: white;
   font-size: 1.5rem;
   cursor: pointer;
+  padding: 0;
   line-height: 1;
 }
 
@@ -860,17 +943,52 @@ export default {
 }
 
 .detail-row {
-  margin-bottom: 0.75rem;
   display: flex;
+  margin-bottom: 1rem;
+}
+
+.detail-row:last-child {
+  margin-bottom: 0;
 }
 
 .detail-label {
+  width: 120px;
   font-weight: 500;
-  width: 100px;
   color: #666;
 }
 
 .detail-value {
   flex: 1;
+  color: #333;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-content {
+    flex-direction: column;
+  }
+  
+  .left-panel {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .content-wrapper {
+    padding: 1rem;
+  }
+  
+  .controls-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .search-box {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+  
+  .lab-dropdown-wrapper {
+    width: 100%;
+  }
 }
 </style>

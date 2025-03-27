@@ -81,6 +81,9 @@ export default {
         case 'Lab InCharge':
           profileRoute = '/user-profile-lab';
           break;
+        case 'Dean':
+          profileRoute = '/user-profile-dean';
+          break;
         default:
           profileRoute = '/user-profile-viewer';
           break;

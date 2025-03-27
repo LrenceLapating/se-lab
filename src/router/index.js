@@ -106,7 +106,7 @@ const routes = [
   {
     path: '/all-schedules-sysad',
     name: 'AllSchedulesSysAd',
-    component: () => import('../views/System Admin/AllSchedSysAd.vue'),
+    component: () => import('../views/Dean/AllSchedSysAd.vue'),
     meta: { requiresAuth: true, role: 'System Administrator' }
   },
   {
@@ -158,6 +158,37 @@ const routes = [
     name: 'UserProfileLab',
     component: () => import('../views/Lab InCharge/UserProfileLab.vue'),
     meta: { requiresAuth: true, role: 'Lab InCharge' }
+  },
+  // Dean Routes
+  {
+    path: '/dashboard-dean',
+    name: 'DashboardDean',
+    component: () => import('../views/Dean/DashboardDean.vue'),
+    meta: { requiresAuth: true, role: 'Dean' }
+  },
+  {
+    path: '/notifications-dean',
+    name: 'NotificationsDean',
+    component: () => import('../views/Dean/NotificationsDean.vue'),
+    meta: { requiresAuth: true, role: 'Dean' }
+  },
+  {
+    path: '/schedule-dean',
+    name: 'ScheduleDean',
+    component: () => import('../views/Dean/ScheduleDean.vue'),
+    meta: { requiresAuth: true, role: 'Dean' }
+  },
+  {
+    path: '/user-profile-dean',
+    name: 'UserProfileDean',
+    component: () => import('../views/Dean/UserProfileDean.vue'),
+    meta: { requiresAuth: true, role: 'Dean' }
+  },
+  {
+    path: '/all-schedules-dean',
+    name: 'AllSchedulesDean',
+    component: () => import('../views/Dean/AllSchedSysAd.vue'),
+    meta: { requiresAuth: true, role: 'Dean' }
   },
   // Redirect for any unmatched routes
   {

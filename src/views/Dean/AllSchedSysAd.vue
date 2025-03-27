@@ -1,6 +1,6 @@
 <template>
   <div class="dashboard-layout" ref="scheduleComponent">
-    <DashBoardSidebarSysAd />
+    <DashBoardSideBarDean />
     <div class="main-content">
       <DashBoardTopbar />
       <div class="content-wrapper">
@@ -8,7 +8,7 @@
           <div class="welcome-section">
             <div class="header-content">
               <h2>All Schedules</h2>
-              <div class="action-buttons" v-if="hasVisibleSchedules">
+              <div class="action-buttons" v-if="hasPendingSchedules">
                 <button class="clear-btn" @click="clearAllSchedules">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M3 6h18"></path>
@@ -21,14 +21,14 @@
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M20 6L9 17l-5-5"/>
                   </svg>
-                  Approve
+                  Approve All
                 </button>
                 <button class="reject-btn" @click="rejectSelectedSchedule">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
                     <line x1="6" y1="6" x2="18" y2="18"></line>
                   </svg>
-                  Reject
+                  Reject All
                 </button>
               </div>
             </div>
@@ -149,13 +149,13 @@
 </template>
 
 <script>
-import DashBoardSidebarSysAd from '../../components/DashBoardSidebarSysAd.vue'
+import DashBoardSideBarDean from '../../components/DashBoardSideBarDean.vue'
 import DashBoardTopbar from '../../components/DashBoardTopbar.vue'
 
 export default {
   name: 'AllSchedSysAd',
   components: {
-    DashBoardSidebarSysAd,
+    DashBoardSideBarDean,
     DashBoardTopbar
   },
   data() {
@@ -214,9 +214,9 @@ export default {
     }
   },
   computed: {
-    hasVisibleSchedules() {
-      return this.schedules.some(schedule => 
-        schedule.labRoom === this.selectedLab && 
+    hasPendingSchedules() {
+      return this.allSchedules.some(schedule => 
+        schedule.status === 'pending' &&
         schedule.semester === this.selectedSemester
       );
     }
@@ -236,9 +236,9 @@ export default {
       try {
         const userData = JSON.parse(userStr);
         
-        // Verify the user has System Administrator role
-        if (userData.role !== 'System Administrator') {
-          console.error('User does not have System Administrator role');
+        // Verify the user has either System Administrator or Dean role
+        if (userData.role !== 'System Administrator' && userData.role !== 'Dean') {
+          console.error('User does not have permission to view this page');
           // Redirect to the appropriate dashboard based on role
           if (userData.role === 'Academic Coordinator') {
             this.$router.push('/dashboard-acad-coor');
@@ -622,15 +622,15 @@ export default {
       }
     },
     approveSelectedSchedule() {
-      // Get all pending schedules for current semester and lab
+      // Get all pending schedules for current semester across ALL labs
       const pendingSchedules = this.allSchedules.filter(schedule => 
         schedule.status === 'pending' &&
-        schedule.semester === this.selectedSemester &&
-        schedule.labRoom === this.selectedLab
+        schedule.semester === this.selectedSemester
+        // No lab filter here to include all labs
       );
 
       if (pendingSchedules.length === 0) {
-        alert('No pending schedules to approve');
+        alert('No pending schedules to approve for the selected semester');
         return;
       }
 
@@ -701,34 +701,58 @@ export default {
       }
     },
     rejectSelectedSchedule() {
-      if (!this.selectedSchedule || !this.selectedSchedule.id) {
-        alert('Please select a schedule to reject');
+      // Get all pending schedules for current semester across ALL labs
+      const pendingSchedules = this.allSchedules.filter(schedule => 
+        schedule.status === 'pending' &&
+        schedule.semester === this.selectedSemester
+        // No lab filter here to include all labs
+      );
+
+      if (pendingSchedules.length === 0) {
+        alert('No pending schedules to reject for the selected semester');
         return;
       }
 
       // Update the schedule status
-      const scheduleIndex = this.allSchedules.findIndex(s => s.id === this.selectedSchedule.id);
-      if (scheduleIndex !== -1) {
-        // Set status back to draft so it appears in Schedule Management
-        this.allSchedules[scheduleIndex].status = 'draft';
+      try {
+        // Update all pending schedules to draft status (rejected)
+        this.allSchedules = this.allSchedules.map(schedule => {
+          if (pendingSchedules.some(pending => pending.id === schedule.id)) {
+            return { ...schedule, status: 'draft' };
+          }
+          return schedule;
+        });
         
-        try {
-          // Update localStorage
-          localStorage.setItem('sysadmin_schedules', JSON.stringify(this.allSchedules));
-          localStorage.setItem('labSchedules', JSON.stringify(this.allSchedules));
-          localStorage.setItem('acad_coor_schedules', JSON.stringify(this.allSchedules));
-          
-          // Refresh the filtered schedules
-          this.filterSchedulesBySemester();
-          
-          // Close the popup
-          this.closePopup();
-          
-          alert('Schedule rejected and sent back to draft');
-        } catch (storageError) {
-          console.error('Error updating localStorage:', storageError);
-          alert('Error rejecting schedule. Please try again.');
+        // Update localStorage
+        localStorage.setItem('sysadmin_schedules', JSON.stringify(this.allSchedules));
+        
+        // Update acad_coor_schedules to reflect the rejected status
+        let acadCoorSchedules = JSON.parse(localStorage.getItem('acad_coor_schedules') || '[]');
+        if (!Array.isArray(acadCoorSchedules)) {
+          acadCoorSchedules = [];
         }
+
+        // Update status of rejected schedules in acad_coor_schedules
+        acadCoorSchedules = acadCoorSchedules.map(schedule => {
+          if (pendingSchedules.some(pending => pending.id === schedule.id)) {
+            return { ...schedule, status: 'draft' };
+          }
+          return schedule;
+        });
+
+        // Save back to acad_coor_schedules
+        localStorage.setItem('acad_coor_schedules', JSON.stringify(acadCoorSchedules));
+        
+        // Refresh the filtered schedules
+        this.filterSchedulesBySemester();
+        
+        // Close the popup if it's open
+        this.closePopup();
+        
+        alert(`${pendingSchedules.length} schedule(s) rejected and sent back to draft`);
+      } catch (storageError) {
+        console.error('Error updating localStorage:', storageError);
+        alert('Error rejecting schedules. Please try again.');
       }
     },
     calculateDurationMinutes(startTime, endTime) {

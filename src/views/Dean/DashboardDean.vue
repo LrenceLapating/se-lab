@@ -1,7 +1,6 @@
-// DashboardViewer.vue
 <template>
   <div class="dashboard-layout" ref="scheduleComponent">
-    <DashBoardSidebarViewer />
+    <DashBoardSideBarDean />
     <div class="main-content">
       <DashBoardTopbar />
       <div class="content-wrapper">
@@ -132,14 +131,14 @@
 </template>
 
 <script>
-import DashBoardSidebarViewer from '../../components/DashBoardSidebarViewer.vue'
+import DashBoardSideBarDean from '../../components/DashBoardSideBarDean.vue'
 import DashBoardTopbar from '../../components/DashBoardTopbar.vue'
 import Calendar from '../../components/Calendar.vue'
 
 export default {
-  name: 'DashboardViewer',
+  name: 'DashboardDean',
   components: {
-    DashBoardSidebarViewer,
+    DashBoardSideBarDean,
     DashBoardTopbar,
     Calendar
   },
@@ -168,13 +167,64 @@ export default {
       return this.currentDate.toLocaleDateString('en-US', options);
     }
   },
+  created() {
+    this.checkAuth();
+  },
   mounted() {
+    // Check authentication and get user info
+    this.checkAuth();
+    this.getUserName();
+    
+    // Load schedules from storage
     this.loadSchedulesFromStorage();
     
+    // Initialize mock schedules only if none exist
+    if (this.schedules.length === 0) {
+      this.initializeMockSchedules();
+      this.loadSchedulesFromStorage(); // Reload to get mock schedules
+    }
+    
+    // Generate week days and update calendar
     this.generateWeekDays();
-    this.getUserName();
+    
+    // Load pending schedules and registration requests
+    this.loadPendingSchedules();
+    this.loadRegistrationRequests();
   },
   methods: {
+    checkAuth() {
+      // Check if user is authenticated and has the correct role
+      const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+      const userStr = sessionStorage.getItem('user') || localStorage.getItem('user');
+      
+      if (!token || !userStr) {
+        console.error('No authentication found, redirecting to login');
+        this.$router.push('/login');
+        return;
+      }
+      
+      try {
+        const userData = JSON.parse(userStr);
+        
+        // Verify the user has Dean role
+        if (userData.role !== 'Dean') {
+          console.error('User does not have Dean role');
+          // Redirect to the appropriate dashboard based on role
+          if (userData.role === 'System Administrator') {
+            this.$router.push('/dashboard-sysad');
+          } else if (userData.role === 'Academic Coordinator') {
+            this.$router.push('/dashboard-acad-coor');
+          } else if (userData.role === 'Lab InCharge') {
+            this.$router.push('/dashboard-lab');
+          } else {
+            this.$router.push('/dashboard-viewer');
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+        this.$router.push('/login');
+      }
+    },
     getUserName() {
       // Get user data from session or local storage
       const userStr = sessionStorage.getItem('user') || localStorage.getItem('user');
@@ -275,6 +325,141 @@ export default {
         return 0;
       }
     },
+    loadSchedulesFromStorage() {
+      try {
+        this.schedules = []; // Initialize as empty array
+        
+        // Load lab schedules
+        const labSchedules = localStorage.getItem('labSchedules');
+        if (labSchedules) {
+          const parsedLabSchedules = JSON.parse(labSchedules);
+          if (Array.isArray(parsedLabSchedules)) {
+            const approvedLabSchedules = parsedLabSchedules.filter(schedule => schedule.status === 'approved');
+            this.schedules = [...this.schedules, ...approvedLabSchedules];
+          }
+        }
+
+        // Load viewer schedules
+        const viewerSchedules = localStorage.getItem('viewer_schedules');
+        if (viewerSchedules) {
+          const parsedViewerSchedules = JSON.parse(viewerSchedules);
+          if (Array.isArray(parsedViewerSchedules)) {
+            const approvedViewerSchedules = parsedViewerSchedules.filter(schedule => schedule.status === 'approved');
+            this.schedules = [...this.schedules, ...approvedViewerSchedules];
+          }
+        }
+
+        // Load generic schedules
+        const genericSchedules = localStorage.getItem('generic_schedules');
+        if (genericSchedules) {
+          const parsedGenericSchedules = JSON.parse(genericSchedules);
+          if (Array.isArray(parsedGenericSchedules)) {
+            const approvedGenericSchedules = parsedGenericSchedules.filter(schedule => schedule.status === 'approved');
+            this.schedules = [...this.schedules, ...approvedGenericSchedules];
+          }
+        }
+
+        // Load system admin schedules
+        const sysAdminSchedules = localStorage.getItem('sysadmin_schedules');
+        if (sysAdminSchedules) {
+          const parsedSysAdminSchedules = JSON.parse(sysAdminSchedules);
+          if (Array.isArray(parsedSysAdminSchedules)) {
+            const approvedSysAdminSchedules = parsedSysAdminSchedules.filter(schedule => schedule.status === 'approved');
+            this.schedules = [...this.schedules, ...approvedSysAdminSchedules];
+          }
+        }
+
+        // Load academic coordinator schedules
+        const acadCoorSchedules = localStorage.getItem('acad_coor_schedules');
+        if (acadCoorSchedules) {
+          const parsedAcadCoorSchedules = JSON.parse(acadCoorSchedules);
+          if (Array.isArray(parsedAcadCoorSchedules)) {
+            const approvedAcadCoorSchedules = parsedAcadCoorSchedules.filter(schedule => schedule.status === 'approved');
+            this.schedules = [...this.schedules, ...approvedAcadCoorSchedules];
+          }
+        }
+
+        // Load dean schedules
+        const deanSchedules = localStorage.getItem('dean_schedules');
+        if (deanSchedules) {
+          const parsedDeanSchedules = JSON.parse(deanSchedules);
+          if (Array.isArray(parsedDeanSchedules)) {
+            const approvedDeanSchedules = parsedDeanSchedules.filter(schedule => schedule.status === 'approved');
+            this.schedules = [...this.schedules, ...approvedDeanSchedules];
+          }
+        }
+
+        // De-duplicate schedules based on composite key (day + startTime + labRoom)
+        const uniqueSchedules = [];
+        const seen = new Set();
+        
+        this.schedules.forEach(schedule => {
+          const key = `${schedule.day}-${schedule.startTime}-${schedule.labRoom}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            uniqueSchedules.push(schedule);
+          }
+        });
+
+        this.schedules = uniqueSchedules;
+
+        // If no schedules found, initialize with mock data
+        if (this.schedules.length === 0) {
+          this.initializeMockSchedules();
+        }
+      } catch (error) {
+        console.error('Error loading schedules from localStorage:', error);
+        this.schedules = []; // Ensure schedules is an array even if loading fails
+        this.initializeMockSchedules();
+      }
+    },
+    initializeMockSchedules() {
+      // Sample data with consistent format
+      const mockSchedules = [
+        {
+          id: 1,
+          labRoom: 'L501',
+          day: 'Monday',
+          startTime: '8:00 AM',
+          endTime: '11:00 AM',
+          title: 'GEC123',
+          courseName: 'Science, Technology & Society',
+          section: 'BSIT-1B',
+          instructorName: 'Dr. Maria Santos',
+          color: '#DD385A',
+          status: 'approved'
+        },
+        {
+          id: 2,
+          labRoom: 'L501',
+          day: 'Tuesday',
+          startTime: '8:00 AM',
+          endTime: '10:00 AM',
+          title: 'FFW123 (Lab)',
+          courseName: 'Ignatian Spirituality & Christian Life 1',
+          section: 'BSIT-1A',
+          instructorName: 'Fr. James Rodriguez',
+          color: '#DD385A',
+          status: 'approved'
+        },
+        {
+          id: 3,
+          labRoom: 'L501',
+          day: 'Wednesday',
+          startTime: '10:00 AM',
+          endTime: '12:00 PM',
+          title: 'Network101',
+          courseName: 'Networking',
+          section: 'BSIT-2A',
+          instructorName: 'Engr. Roberto Dela Cruz',
+          color: '#4169E1',
+          status: 'approved'
+        }
+      ];
+      
+      localStorage.setItem('dean_schedules', JSON.stringify(mockSchedules));
+      console.log('Mock schedules initialized for Dean');
+    },
     isTimeSlotWithinSchedule(dayName, timeSlot) {
       if (!this.schedules || this.schedules.length === 0) {
         return false;
@@ -312,56 +497,6 @@ export default {
         return timeSlotMinutes === startMinutes;
       });
     },
-    getScheduleTitle(dayName, timeSlot) {
-      // Filter by current lab room
-      const relevantSchedules = this.schedules.filter(schedule => {
-        if (schedule.labRoom !== this.selectedLab || schedule.day !== dayName) {
-          return false;
-        }
-        
-        const startMinutes = this.convertTimeToMinutes(schedule.startTime);
-        const slotMinutes = this.convertTimeToMinutes(timeSlot);
-        
-        return startMinutes === slotMinutes;
-      });
-      
-      if (relevantSchedules.length === 0) return '';
-      return relevantSchedules[0].title;
-    },
-    getScheduleTime(dayName, timeSlot) {
-      // Filter by current lab room
-      const relevantSchedules = this.schedules.filter(schedule => {
-        if (schedule.labRoom !== this.selectedLab || schedule.day !== dayName) {
-          return false;
-        }
-        
-        const startMinutes = this.convertTimeToMinutes(schedule.startTime);
-        const slotMinutes = this.convertTimeToMinutes(timeSlot);
-        
-        return startMinutes === slotMinutes;
-      });
-      
-      if (relevantSchedules.length === 0) return '';
-      return `${relevantSchedules[0].startTime} - ${relevantSchedules[0].endTime}`;
-    },
-    getScheduleDetails(dayName, timeSlot) {
-      // Filter by current lab room
-      const relevantSchedules = this.schedules.filter(schedule => {
-        if (schedule.labRoom !== this.selectedLab || schedule.day !== dayName) {
-          return false;
-        }
-        
-        const startMinutes = this.convertTimeToMinutes(schedule.startTime);
-        const slotMinutes = this.convertTimeToMinutes(timeSlot);
-        
-        return startMinutes === slotMinutes;
-      });
-      
-      if (relevantSchedules.length === 0) return '';
-      
-      const schedule = relevantSchedules[0];
-      return `${schedule.courseName}\n${schedule.section}\n${schedule.instructorName}`;
-    },
     getScheduleStyle(dayName, timeSlot) {
       // Filter by current lab room
       const schedules = this.schedules.filter(schedule => {
@@ -382,100 +517,37 @@ export default {
         backgroundColor: schedules[0].color || '#DD385A'
       };
     },
-    loadSchedulesFromStorage() {
-      try {
-        this.schedules = []; // Initialize as empty array
+    getScheduleTitle(dayName, timeSlot) {
+      // Filter by current lab room
+      const relevantSchedules = this.schedules.filter(schedule => {
+        if (schedule.labRoom !== this.selectedLab || schedule.day !== dayName) {
+          return false;
+        }
         
-        // Load viewer schedules
-        const viewerSchedules = localStorage.getItem('viewer_schedules');
-        if (viewerSchedules) {
-          const parsedViewerSchedules = JSON.parse(viewerSchedules);
-          if (Array.isArray(parsedViewerSchedules)) {
-            const approvedViewerSchedules = parsedViewerSchedules.filter(schedule => schedule.status === 'approved');
-            this.schedules = [...this.schedules, ...approvedViewerSchedules];
-          }
-        }
-
-        // Load lab schedules
-        const labSchedules = localStorage.getItem('lab_schedules');
-        if (labSchedules) {
-          const parsedLabSchedules = JSON.parse(labSchedules);
-          if (Array.isArray(parsedLabSchedules)) {
-            const approvedLabSchedules = parsedLabSchedules.filter(schedule => schedule.status === 'approved');
-            this.schedules = [...this.schedules, ...approvedLabSchedules];
-          }
-        }
-
-        // Load system admin schedules
-        const sysAdminSchedules = localStorage.getItem('sysadmin_schedules');
-        if (sysAdminSchedules) {
-          const parsedSysAdminSchedules = JSON.parse(sysAdminSchedules);
-          if (Array.isArray(parsedSysAdminSchedules)) {
-            const approvedSysAdminSchedules = parsedSysAdminSchedules.filter(schedule => schedule.status === 'approved');
-            this.schedules = [...this.schedules, ...approvedSysAdminSchedules];
-          }
-        }
-
-        // Load academic coordinator schedules
-        const acadCoorSchedules = localStorage.getItem('acadcoor_schedules');
-        if (acadCoorSchedules) {
-          const parsedAcadCoorSchedules = JSON.parse(acadCoorSchedules);
-          if (Array.isArray(parsedAcadCoorSchedules)) {
-            const approvedAcadCoorSchedules = parsedAcadCoorSchedules.filter(schedule => schedule.status === 'approved');
-            this.schedules = [...this.schedules, ...approvedAcadCoorSchedules];
-          }
-        }
-
-        // Load dean schedules
-        const deanSchedules = localStorage.getItem('dean_schedules');
-        if (deanSchedules) {
-          const parsedDeanSchedules = JSON.parse(deanSchedules);
-          if (Array.isArray(parsedDeanSchedules)) {
-            const approvedDeanSchedules = parsedDeanSchedules.filter(schedule => schedule.status === 'approved');
-            this.schedules = [...this.schedules, ...approvedDeanSchedules];
-          }
-        }
-
-        // De-duplicate schedules based on composite key (day + startTime + labRoom)
-        const uniqueSchedules = [];
-        const seen = new Set();
+        const startMinutes = this.convertTimeToMinutes(schedule.startTime);
+        const slotMinutes = this.convertTimeToMinutes(timeSlot);
         
-        this.schedules.forEach(schedule => {
-          const key = `${schedule.day}-${schedule.startTime}-${schedule.labRoom}`;
-          if (!seen.has(key)) {
-            seen.add(key);
-            uniqueSchedules.push(schedule);
-          }
-        });
-
-        this.schedules = uniqueSchedules;
-
-        // If no schedules found, initialize with mock data
-        if (this.schedules.length === 0) {
-          this.initializeMockSchedules();
-          this.loadSchedulesFromStorage(); // Reload after initialization
+        return startMinutes === slotMinutes;
+      });
+      
+      if (relevantSchedules.length === 0) return '';
+      return relevantSchedules[0].title || relevantSchedules[0].courseName;
+    },
+    getScheduleTime(dayName, timeSlot) {
+      // Filter by current lab room
+      const relevantSchedules = this.schedules.filter(schedule => {
+        if (schedule.labRoom !== this.selectedLab || schedule.day !== dayName) {
+          return false;
         }
-      } catch (error) {
-        console.error('Error loading schedules from localStorage:', error);
-        this.schedules = []; // Ensure schedules is an array even if loading fails
-        this.initializeMockSchedules();
-        this.loadSchedulesFromStorage(); // Reload after initialization
-      }
-    },
-    previousMonth() {
-      if (this.$refs.calendar) {
-        this.$refs.calendar.previousMonth();
-      }
-    },
-    nextMonth() {
-      if (this.$refs.calendar) {
-        this.$refs.calendar.nextMonth();
-      }
-    },
-    goToToday() {
-      if (this.$refs.calendar) {
-        this.$refs.calendar.goToToday();
-      }
+        
+        const startMinutes = this.convertTimeToMinutes(schedule.startTime);
+        const slotMinutes = this.convertTimeToMinutes(timeSlot);
+        
+        return startMinutes === slotMinutes;
+      });
+      
+      if (relevantSchedules.length === 0) return '';
+      return `${relevantSchedules[0].startTime} - ${relevantSchedules[0].endTime}`;
     },
     showScheduleDetails(dayName, timeSlot) {
       // Find the schedule for this day and timeSlot
@@ -498,52 +570,50 @@ export default {
     closePopup() {
       this.showPopup = false;
     },
-    initializeMockSchedules() {
-      // Sample data that matches the Dean dashboard format
-      const mockSchedules = [
-        {
-          id: 1,
-          labRoom: 'L401',
-          day: 'Monday',
-          startTime: '8:00 AM',
-          endTime: '11:00 AM',
-          title: 'GEC123',
-          courseName: 'Science, Technology & Society',
-          section: 'BSIT-1B',
-          instructorName: 'Dr. Maria Santos',
-          color: '#DD385A',
-          status: 'approved'
-        },
-        {
-          id: 2,
-          labRoom: 'L401',
-          day: 'Tuesday',
-          startTime: '8:00 AM',
-          endTime: '10:00 AM',
-          title: 'FFW123 (Lab)',
-          courseName: 'Ignatian Spirituality & Christian Life 1',
-          section: 'BSIT-1A',
-          instructorName: 'Fr. James Rodriguez',
-          color: '#DD385A',
-          status: 'approved'
-        },
-        {
-          id: 3,
-          labRoom: 'L401',
-          day: 'Wednesday',
-          startTime: '10:00 AM',
-          endTime: '12:00 PM',
-          title: 'Network101',
-          courseName: 'Networking',
-          section: 'BSIT-2A',
-          instructorName: 'Engr. Roberto Dela Cruz',
-          color: '#4169E1',
-          status: 'approved'
+    previousMonth() {
+      if (this.$refs.calendar) {
+        this.$refs.calendar.previousMonth();
+      }
+    },
+    nextMonth() {
+      if (this.$refs.calendar) {
+        this.$refs.calendar.nextMonth();
+      }
+    },
+    goToToday() {
+      if (this.$refs.calendar) {
+        this.$refs.calendar.goToToday();
+      }
+    },
+    loadPendingSchedules() {
+      try {
+        // First check if the user is still authenticated
+        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+        if (!token) {
+          console.error('No token found when loading pending schedules');
+          return;
         }
-      ];
-      
-      localStorage.setItem('viewer_schedules', JSON.stringify(mockSchedules));
-      console.log('Mock schedules initialized for Viewer');
+        
+        // Load pending schedules logic would go here
+        console.log('Loading pending schedules...');
+      } catch (error) {
+        console.error('Error in loadPendingSchedules:', error);
+      }
+    },
+    loadRegistrationRequests() {
+      try {
+        // First check if the user is still authenticated
+        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+        if (!token) {
+          console.error('No token found when loading registration requests');
+          return;
+        }
+        
+        // Load registration requests logic would go here
+        console.log('Loading registration requests...');
+      } catch (error) {
+        console.error('Error in loadRegistrationRequests:', error);
+      }
     }
   }
 }
@@ -949,4 +1019,4 @@ export default {
     width: 100%;
   }
 }
-</style>
+</style> 

@@ -1,69 +1,96 @@
 <template>
-  <div class="dashboard-layout" ref="scheduleComponent">
+  <div class="dashboard-layout">
     <DashBoardSidebar />
     <div class="main-content">
       <DashBoardTopbar />
-      <div class="content-wrapper">
+      <div class="schedule-content">
         <div class="header">
-          <h1>Schedule Management</h1>
-          <div class="header-actions">
-            <button class="download-btn" @click="downloadSchedule">
-              <i class="fas fa-download"></i>
-              Download Schedule
-            </button>
+          <div class="user-info">
+            <div class="info-row">
+              <span class="label">ID Number:</span>
+              <span class="value">{{ user.idNumber || '12345678' }}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">Name:</span>
+              <span class="value">{{ user.name || 'System Administrator' }}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">Classification:</span>
+              <span class="value">{{ user.classification || 'System Administrator' }}</span>
+            </div>
+            <p class="current-date">{{ weekDateRange }}</p>
           </div>
         </div>
 
+        <div class="schedule-actions">
+          <div class="week-navigation">
+            <button class="nav-btn" @click="previousWeek">
+              <i class="pi pi-angle-left"></i>
+            </button>
+            <button class="nav-btn" @click="nextWeek">
+              <i class="pi pi-angle-right"></i>
+            </button>
+          </div>
+          <button class="btn-action" @click="downloadSchedule">
+            <i class="fas fa-download"></i>
+            Download Schedule
+          </button>
+        </div>
+
         <div class="schedule-container">
-          <div class="lab-navigation">
-            <button class="nav-btn" @click="previousLab">
-              <i class="nav-icon"><</i>
-            </button>
-            <div class="lab-indicator">
-              {{ selectedLab }}
-            </div>
-            <button class="nav-btn" @click="nextLab">
-              <i class="nav-icon">></i>
-            </button>
-          </div>
-          <div class="week-header">
-            <div class="time-header">
-              <div class="time-label">Time</div>
-            </div>
-            <div class="day-headers">
-              <div class="day-header" v-for="(day, index) in weekDays" :key="index">
-                <div class="day-name">{{ day.name }}</div>
-                <div class="day-date">{{ day.date }}</div>
-              </div>
-            </div>
-          </div>
-          <div class="schedule-grid">
-            <div class="time-column">
-              <div class="time-slot" v-for="time in displayTimeSlots" :key="time">
-                {{ time }}
-              </div>
-            </div>
-            <div class="schedule-content">
-              <div class="day-column" v-for="(day, dayIndex) in weekDays" :key="dayIndex">
-                <div class="day-slots">
-                  <div class="time-slot" v-for="(time, timeIndex) in displayTimeSlots" :key="timeIndex">
-                    <div 
-                      v-if="isTimeSlotWithinSchedule(day.name, time)"
-                      class="schedule-item" 
-                      :style="getScheduleStyle(day.name, time)"
-                    >
-                      <div 
-                        v-if="isScheduleStart(day.name, time)" 
-                        class="schedule-content"
-                      >
-                        <div class="schedule-title">{{ getScheduleTitle(day.name, time) }}</div>
-                        <div class="schedule-time">{{ getScheduleTime(day.name, time) }}</div>
-                        <div class="schedule-details">{{ getScheduleDetails(day.name, time) }}</div>
-                      </div>
-                    </div>
-                  </div>
+          <div class="schedule-card">
+            <div class="schedule-header">
+              <h2>Current Schedule</h2>
+              <div class="lab-navigation">
+                <button class="nav-btn" @click="previousLab">
+                  <i class="nav-icon"><</i>
+                </button>
+                <div class="lab-indicator">
+                  {{ selectedLab }}
                 </div>
+                <button class="nav-btn" @click="nextLab">
+                  <i class="nav-icon">></i>
+                </button>
               </div>
+            </div>
+            
+            <div class="schedule-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th v-for="(day, index) in weekDays" :key="day.name">
+                      <div class="day-header">
+                        <span class="day-name">{{ day.name }}</span>
+                        <span class="day-date">{{ day.date }}</span>
+                      </div>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="time in displayTimeSlots" :key="time">
+                    <td class="time-slot">{{ time }}</td>
+                    <td v-for="day in weekDays" 
+                        :key="day.name" 
+                        class="schedule-slot">
+                      <div 
+                        v-if="isTimeSlotWithinSchedule(day.name, time)"
+                        class="schedule-item" 
+                        :style="getScheduleStyle(day.name, time)"
+                      >
+                        <div 
+                          v-if="isScheduleStart(day.name, time)" 
+                          class="schedule-item-content"
+                        >
+                          <div class="schedule-title">{{ getScheduleTitle(day.name, time) }}</div>
+                          <div class="schedule-time">{{ getScheduleTime(day.name, time) }}</div>
+                          <div class="schedule-details">{{ getScheduleDetails(day.name, time) }}</div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -73,17 +100,22 @@
 </template>
 
 <script>
-import DashBoardSidebar from '../../components/DashBoardSideBarSysAd.vue'
+import DashBoardSidebarSysAd from '../../components/DashBoardSidebarSysAd.vue'
 import DashBoardTopbar from '../../components/DashBoardTopbar.vue'
 
 export default {
   name: 'ScheduleSysAd',
   components: {
-    DashBoardSidebar,
+    DashBoardSidebar: DashBoardSidebarSysAd,
     DashBoardTopbar
   },
   data() {
     return {
+      user: {
+        idNumber: '',
+        name: '',
+        classification: ''
+      },
       selectedLab: 'L201',
       laboratories: ['L201', 'L202', 'L203', 'L204', 'L205', 'IOT'],
       displayTimeSlots: [
@@ -94,58 +126,191 @@ export default {
         '5:30 PM', '6:00 PM', '6:30 PM', '7:00 PM', '7:30 PM',
         '8:00 PM'
       ],
+      currentWeekStart: new Date(),
       weekDays: [],
       schedules: []
     }
   },
   created() {
-    this.generateWeekDays()
-    this.loadSchedules()
+    this.getUserInfo();
+    this.loadSchedules();
+  },
+  watch: {
+    currentWeekStart: {
+      handler() {
+        this.weekDays = this.getWeekDays();
+      },
+      immediate: true
+    },
+    selectedLab: {
+      handler() {
+        this.loadSchedules();
+      }
+    }
+  },
+  computed: {
+    weekDateRange() {
+      const days = this.getWeekDays();
+      const firstDay = days[0].date;
+      const lastDay = days[4].date;
+      const [firstMonth, firstDate] = firstDay.split(' ');
+      const [lastMonth, lastDate] = lastDay.split(' ');
+      
+      // If same month, show only once
+      if (firstMonth === lastMonth) {
+        return `${firstMonth} ${firstDate} - ${lastDate}, 2025`;
+      }
+      return `${firstMonth} ${firstDate} - ${lastMonth} ${lastDate}, 2025`;
+    }
   },
   methods: {
     loadSchedules() {
       try {
-        const savedSchedules = localStorage.getItem('labSchedules')
-        if (savedSchedules) {
-          const schedules = JSON.parse(savedSchedules)
-          this.schedules = schedules.filter(schedule => schedule.labRoom === this.selectedLab)
+        this.schedules = []; // Initialize as empty array
+        
+        // Load from sysadmin_schedules for this specific admin's schedules
+        const sysAdminSchedules = localStorage.getItem('sysadmin_schedules');
+        if (sysAdminSchedules) {
+          const parsedSysAdminSchedules = JSON.parse(sysAdminSchedules);
+          if (Array.isArray(parsedSysAdminSchedules)) {
+            // Filter schedules by selected lab
+            const filteredSchedules = parsedSysAdminSchedules.filter(schedule => 
+              schedule.labRoom === this.selectedLab
+            );
+            this.schedules = [...this.schedules, ...filteredSchedules];
+          }
         }
+
+        // If no schedules found, initialize with mock data
+        if (this.schedules.length === 0) {
+          this.initializeMockSchedules();
+          // Reload schedules after initialization
+          const newSysAdminSchedules = localStorage.getItem('sysadmin_schedules');
+          if (newSysAdminSchedules) {
+            const parsedSchedules = JSON.parse(newSysAdminSchedules);
+            // Filter again by selected lab
+            this.schedules = parsedSchedules.filter(schedule => 
+              schedule.labRoom === this.selectedLab
+            );
+          }
+        }
+
+        console.log('Loaded schedules for lab ' + this.selectedLab + ':', this.schedules);
       } catch (error) {
-        console.error('Error loading schedules:', error)
-        this.schedules = []
+        console.error('Error loading schedules:', error);
+        this.schedules = [];
       }
     },
-    generateWeekDays() {
-      const currentDate = new Date()
-      const dayOfWeek = currentDate.getDay()
-      const diff = currentDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1)
-      const monday = new Date(currentDate.setDate(diff))
+    
+    initializeMockSchedules() {
+      // Sample data that matches the other dashboards
+      const mockSchedules = [
+        {
+          id: 1,
+          labRoom: 'L201',
+          day: 'Monday',
+          startTime: '8:00 AM',
+          endTime: '11:00 AM',
+          title: 'GEC123',
+          courseName: 'Science, Technology & Society',
+          section: 'BSIT-1B',
+          instructorName: 'Dr. Maria Santos',
+          color: '#DD385A',
+          status: 'approved'
+        },
+        {
+          id: 2,
+          labRoom: 'L201',
+          day: 'Tuesday',
+          startTime: '8:00 AM',
+          endTime: '10:00 AM',
+          title: 'FFW123',
+          courseName: 'Ignatian Spirituality & Christian Life 1',
+          section: 'BSIT-1A',
+          instructorName: 'Fr. James Rodriguez',
+          color: '#DD385A',
+          status: 'approved'
+        },
+        {
+          id: 3,
+          labRoom: 'L201',
+          day: 'Wednesday',
+          startTime: '10:00 AM',
+          endTime: '12:00 PM',
+          title: 'NET101',
+          courseName: 'Networking',
+          section: 'BSIT-2A',
+          instructorName: 'Engr. Roberto Dela Cruz',
+          color: '#4169E1',
+          status: 'approved'
+        }
+      ];
       
-      const weekDays = []
-      for (let i = 0; i < 6; i++) {
-        const day = new Date(monday)
-        day.setDate(monday.getDate() + i)
-        weekDays.push({
-          name: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][i],
-          date: day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-        })
-      }
-      this.weekDays = weekDays
+      localStorage.setItem('sysadmin_schedules', JSON.stringify(mockSchedules));
+      console.log('Mock schedules initialized for System Admin');
     },
+    
+    getUserInfo() {
+      const userStr = sessionStorage.getItem('user') || localStorage.getItem('user');
+      if (userStr) {
+        try {
+          const userData = JSON.parse(userStr);
+          this.user.name = userData.full_name || 'System Administrator';
+          this.user.idNumber = userData.id_number || '12345678';
+          this.user.classification = userData.role || 'System Administrator';
+        } catch (error) {
+          console.error('Error parsing user data:', error);
+        }
+      }
+    },
+    
+    previousWeek() {
+      const newDate = new Date(this.currentWeekStart);
+      newDate.setDate(newDate.getDate() - 7);
+      this.currentWeekStart = newDate;
+    },
+    
+    nextWeek() {
+      const newDate = new Date(this.currentWeekStart);
+      newDate.setDate(newDate.getDate() + 7);
+      this.currentWeekStart = newDate;
+    },
+    
+    getWeekDays() {
+      const days = [];
+      const monday = new Date(this.currentWeekStart);
+      // Adjust to Monday of the week
+      const dayOfWeek = monday.getDay();
+      const diff = monday.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+      monday.setDate(diff);
+
+      for (let i = 0; i < 5; i++) {
+        const date = new Date(monday);
+        date.setDate(monday.getDate() + i);
+        days.push({
+          name: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'][i],
+          date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        });
+      }
+      return days;
+    },
+    
     previousLab() {
-      const currentIndex = this.laboratories.indexOf(this.selectedLab)
+      const currentIndex = this.laboratories.indexOf(this.selectedLab);
       if (currentIndex > 0) {
-        this.selectedLab = this.laboratories[currentIndex - 1]
-        this.loadSchedules()
+        this.selectedLab = this.laboratories[currentIndex - 1];
+        this.loadSchedules();
       }
     },
+    
     nextLab() {
-      const currentIndex = this.laboratories.indexOf(this.selectedLab)
+      const currentIndex = this.laboratories.indexOf(this.selectedLab);
       if (currentIndex < this.laboratories.length - 1) {
-        this.selectedLab = this.laboratories[currentIndex + 1]
-        this.loadSchedules()
+        this.selectedLab = this.laboratories[currentIndex + 1];
+        this.loadSchedules();
       }
     },
+    
     isTimeSlotWithinSchedule(dayName, timeSlot) {
       if (!this.schedules || this.schedules.length === 0) {
         return false;
@@ -165,6 +330,7 @@ export default {
         return timeSlotMinutes >= startMinutes && timeSlotMinutes < endMinutes;
       });
     },
+    
     isScheduleStart(dayName, timeSlot) {
       if (!this.schedules || this.schedules.length === 0) {
         return false;
@@ -181,7 +347,28 @@ export default {
         return timeSlotMinutes === startMinutes;
       });
     },
+    
     getScheduleStyle(dayName, timeSlot) {
+      const schedule = this.schedules.find(s => {
+        if (s.labRoom !== this.selectedLab || s.day !== dayName) {
+          return false;
+        }
+        
+        const slotMinutes = this.convertTimeToMinutes(timeSlot);
+        const startMinutes = this.convertTimeToMinutes(s.startTime);
+        const endMinutes = this.convertTimeToMinutes(s.endTime);
+        
+        return slotMinutes >= startMinutes && slotMinutes < endMinutes;
+      });
+      
+      if (!schedule) return {};
+      
+      return {
+        backgroundColor: schedule.color || '#DD385A',
+      };
+    },
+    
+    getScheduleTitle(dayName, timeSlot) {
       const schedule = this.schedules.find(s => {
         if (s.labRoom !== this.selectedLab || s.day !== dayName) {
           return false;
@@ -193,85 +380,58 @@ export default {
         return slotMinutes === startMinutes;
       });
       
-      if (!schedule) return {};
-      
-      const startMinutes = this.convertTimeToMinutes(schedule.startTime);
-      const endMinutes = this.convertTimeToMinutes(schedule.endTime);
-      const firstSlotMinutes = this.convertTimeToMinutes('7:30 AM');
-      
-      // Calculate exact position based on minutes from first slot
-      const minutesFromStart = startMinutes - firstSlotMinutes;
-      const topPosition = (minutesFromStart / 30) * 30;
-      
-      // Calculate exact duration in minutes and convert to pixels
-      const durationMinutes = endMinutes - startMinutes;
-      const height = Math.ceil(durationMinutes / 30) * 30;
-      
-      return {
-        position: 'absolute',
-        top: `${topPosition}px`,
-        height: `${height}px`,
-        left: 0,
-        right: 0,
-        backgroundColor: '#E84B75',
-        padding: '4px 6px',
-        overflow: 'hidden',
-        zIndex: 1,
-        color: '#fff',
-        cursor: 'pointer',
-        transition: 'all 0.2s ease',
-        margin: '1px'
-      };
-    },
-    getScheduleTitle(dayName, timeSlot) {
-      const schedule = this.schedules.find(s => 
-        s.labRoom === this.selectedLab && 
-        s.day === dayName && 
-        s.startTime === timeSlot
-      );
       if (!schedule) return '';
-      return `${schedule.courseCode} (${schedule.types.join('/')})`;
+      return schedule.title || '';
     },
+    
     getScheduleTime(dayName, timeSlot) {
-      const schedule = this.schedules.find(s => 
-        s.labRoom === this.selectedLab && 
-        s.day === dayName && 
-        s.startTime === timeSlot
-      );
-      return schedule ? `${schedule.startTime} - ${schedule.endTime}` : '';
+      const schedule = this.schedules.find(s => {
+        if (s.labRoom !== this.selectedLab || s.day !== dayName) {
+          return false;
+        }
+        
+        const slotMinutes = this.convertTimeToMinutes(timeSlot);
+        const startMinutes = this.convertTimeToMinutes(s.startTime);
+        
+        return slotMinutes === startMinutes;
+      });
+      
+      if (!schedule) return '';
+      return `${schedule.startTime} - ${schedule.endTime}`;
     },
+    
     getScheduleDetails(dayName, timeSlot) {
-      const schedule = this.schedules.find(s => 
-        s.labRoom === this.selectedLab && 
-        s.day === dayName && 
-        s.startTime === timeSlot
-      );
+      const schedule = this.schedules.find(s => {
+        if (s.labRoom !== this.selectedLab || s.day !== dayName) {
+          return false;
+        }
+        
+        const slotMinutes = this.convertTimeToMinutes(timeSlot);
+        const startMinutes = this.convertTimeToMinutes(s.startTime);
+        
+        return slotMinutes === startMinutes;
+      });
+      
       if (!schedule) return '';
       return `${schedule.courseName}\n${schedule.section}\n${schedule.instructorName}`;
     },
+    
     convertTimeToMinutes(timeStr) {
-      const [time, period] = timeStr.split(' ')
-      let [hours, minutes] = time.split(':').map(Number)
+      const [time, period] = timeStr.split(' ');
+      let [hours, minutes] = time.split(':').map(Number);
       
       if (period === 'PM' && hours !== 12) {
-        hours += 12
+        hours += 12;
       } else if (period === 'AM' && hours === 12) {
-        hours = 0
+        hours = 0;
       }
       
-      return hours * 60 + minutes
+      return hours * 60 + minutes;
     },
+    
     downloadSchedule() {
       // Implement schedule download functionality
-      console.log('Downloading schedule...')
-    }
-  },
-  watch: {
-    selectedLab: {
-      handler(newLab) {
-        this.loadSchedules()
-      },
-      immediate: true
+      console.log('Downloading schedule...');
     }
   }
 }
@@ -280,68 +440,102 @@ export default {
 <style scoped>
 .dashboard-layout {
   display: flex;
-  min-height: 100vh;
+  width: 100vw;
+  height: 100vh;
   background-color: #f5f5f5;
+  overflow: hidden;
+  font-family: 'Inter', sans-serif;
 }
 
 .main-content {
   flex: 1;
-  padding: 2rem;
-}
-
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-}
-
-.header h1 {
-  font-size: 1.8rem;
-  color: #333;
-  margin: 0;
-}
-
-.header-actions {
-  display: flex;
-  gap: 1rem;
-}
-
-.download-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  background-color: #DD385A;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: all 0.2s ease;
-}
-
-.download-btn:hover {
-  background-color: #c62f4d;
-  transform: translateY(-1px);
-}
-
-.schedule-container {
-  background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  height: calc(100vh - 200px);
+  margin-left: 70px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-.lab-navigation {
+.schedule-content {
+  padding: 1.5rem;
+  height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #DD385A rgba(221, 56, 90, 0.1);
+}
+
+.schedule-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.schedule-content::-webkit-scrollbar-track {
+  background: rgba(221, 56, 90, 0.1);
+  border-radius: 4px;
+}
+
+.schedule-content::-webkit-scrollbar-thumb {
+  background-color: #DD385A;
+  border-radius: 4px;
+}
+
+.header {
+  margin-bottom: 1rem;
+}
+
+.user-info {
+  background: white;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.info-row {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  align-items: center;
+}
+
+.info-row:last-of-type {
+  margin-bottom: 1rem;
+}
+
+.label {
+  color: #666;
+  font-size: 0.9rem;
+  min-width: 100px;
+}
+
+.value {
+  color: #333;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.current-date {
+  color: #DD385A;
+  font-size: 0.9rem;
+  margin: 0;
+  padding-top: 0.5rem;
+  border-top: 1px solid #eee;
+}
+
+.schedule-actions {
   display: flex;
   align-items: center;
   gap: 1rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.week-navigation, .lab-navigation {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.lab-navigation {
+  margin-left: auto;
 }
 
 .nav-btn {
@@ -360,171 +554,241 @@ export default {
 
 .nav-btn:hover {
   background-color: #c62f4d;
+  transform: translateY(-1px);
 }
 
 .lab-indicator {
   font-size: 1.1rem;
   font-weight: 500;
   color: #333;
+  padding: 0 0.5rem;
 }
 
-.week-header {
-  display: flex;
-  margin-bottom: 0;
-  position: sticky;
-  top: 0;
-  z-index: 3;
-  background: white;
-}
-
-.time-header {
-  width: 80px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-  background-color: #f8f9fa;
-  border-radius: 8px 0 0 8px;
-  position: sticky;
-  left: 0;
-  z-index: 4;
-}
-
-.day-headers {
-  display: flex;
+.schedule-container {
   flex: 1;
-}
-
-.day-header {
-  flex: 1;
-  padding: 1rem;
-  text-align: center;
-  background-color: #DD385A;
-  color: white;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.day-name {
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-  font-size: 0.95rem;
-}
-
-.day-date {
-  font-size: 0.85rem;
-  opacity: 0.9;
-}
-
-.schedule-grid {
-  display: flex;
-  min-height: calc(30px * 26); /* Fixed height for 26 slots from 7:30 AM to 8:00 PM */
-  background-color: #fff;
-  position: relative;
-  border: 1px solid #e0e0e0;
-  overflow-y: auto;
-  flex: 1;
-}
-
-.time-column {
-  width: 80px;
-  flex-shrink: 0;
-  background-color: #fff;
-  border-right: 1px solid #e0e0e0;
-  position: sticky;
-  left: 0;
-  z-index: 2;
-}
-
-.schedule-content {
-  display: flex;
-  flex: 1;
-  min-width: fit-content;
-}
-
-.day-column {
-  flex: 1;
-  position: relative;
-  min-width: 200px;
-  border-right: 1px solid #e0e0e0;
-  background-color: #fff;
-}
-
-.day-column:last-child {
-  border-right: none;
-}
-
-.day-slots {
-  position: relative;
-  min-height: calc(30px * 26); /* Ensure all time slots are visible */
-  background-color: #fff;
-}
-
-.time-slot {
-  height: 30px;
-  border-bottom: 1px solid #e0e0e0;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  position: relative;
-  color: #666;
-  font-size: 0.75rem;
-  padding-right: 8px;
-  background-color: #fff;
-}
-
-.schedule-item {
-  position: absolute;
-  left: 0;
-  right: 0;
-  background-color: #E84B75;
-  padding: 4px 6px;
-  overflow: hidden;
-  z-index: 1;
-  color: #fff;
-  cursor: pointer;
-  transition: all 0.2s ease;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  border: none;
-  margin: 1px;
+  min-height: 0;
 }
 
-.schedule-item:hover {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  opacity: 0.95;
-  transform: scale(1.005);
-}
-
-.schedule-content {
+.schedule-card {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
   height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.schedule-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.schedule-header h2 {
+  color: #333;
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 500;
+}
+
+.btn-action {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border: none;
+  border-radius: 8px;
+  background-color: #DD385A;
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-action:hover {
+  background-color: #c62f4d;
+  transform: translateY(-1px);
+}
+
+.btn-action i {
+  font-size: 1rem;
+}
+
+.schedule-table {
+  flex: 1;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #DD385A rgba(221, 56, 90, 0.1);
+  position: relative;
+  height: calc(100vh - 200px);
+}
+
+.schedule-table::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.schedule-table::-webkit-scrollbar-track {
+  background: rgba(221, 56, 90, 0.1);
+  border-radius: 4px;
+}
+
+.schedule-table::-webkit-scrollbar-thumb {
+  background-color: #DD385A;
+  border-radius: 4px;
+}
+
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 800px;
+}
+
+th, td {
+  border: 1px solid #eee;
+  padding: 1rem;
+  text-align: center;
+  background-color: white;
+  height: 60px;
+}
+
+th {
+  background-color: #DD385A;
+  color: white;
+  font-weight: 500;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+th:first-child {
+  left: 0;
+  z-index: 20;
+}
+
+td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  background-color: rgba(221, 56, 90, 0.05);
+  color: #DD385A;
+  font-weight: 500;
+}
+
+.day-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: center;
+  position: relative;
+}
+
+/* Add shadow effects for sticky elements */
+th::after, td:first-child::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 4px;
+  pointer-events: none;
+  box-shadow: inset -2px 0 4px -2px rgba(0, 0, 0, 0.1);
+}
+
+th:first-child::after {
+  box-shadow: none;
+}
+
+/* Add bottom shadow for header row */
+thead::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  pointer-events: none;
+  box-shadow: inset 0 -2px 4px -2px rgba(0, 0, 0, 0.1);
+}
+
+.day-name {
+  font-size: 1rem;
+}
+
+.day-date {
+  font-size: 0.8rem;
+  opacity: 0.9;
+}
+
+.time-slot {
+  color: #DD385A;
+  font-weight: 500;
+  background-color: rgba(221, 56, 90, 0.05);
+}
+
+.schedule-slot {
+  background-color: white;
+  transition: background-color 0.2s ease;
+  position: relative;
+}
+
+.schedule-slot:hover {
+  background-color: rgba(221, 56, 90, 0.05);
+}
+
+.schedule-item {
+  background-color: #DD385A;
+  color: white;
+  border-radius: 4px;
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  top: 5px;
+  bottom: 5px;
+  z-index: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 5px;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease;
+}
+
+.schedule-item:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.schedule-item-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  justify-content: center;
+  align-items: center;
 }
 
 .schedule-title {
   font-weight: 600;
-  font-size: 0.85rem;
-  color: #fff;
-  margin: 0;
-  line-height: 1.2;
+  font-size: 0.9rem;
+  margin-bottom: 2px;
 }
 
 .schedule-time {
   font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.9);
-  margin: 0;
-  line-height: 1.2;
-  font-weight: 500;
+  opacity: 0.9;
+  margin-bottom: 2px;
 }
 
 .schedule-details {
   font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.9);
-  margin: 0;
-  line-height: 1.2;
+  opacity: 0.9;
   white-space: pre-line;
 }
 </style>

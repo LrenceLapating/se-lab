@@ -6,14 +6,14 @@
     </div>
 
     <nav class="nav-links">
-      <router-link to="/dashboard-sysad" class="nav-link" :class="{ active: $route.path === '/dashboard-sysad' }">
+      <router-link to="/dashboard-dean" class="nav-link" :class="{ active: $route.path === '/dashboard-dean' }">
         <div class="icon-container">
           <i class="fas fa-home"></i>
         </div>
         <span v-show="isExpanded">Dashboard</span>
       </router-link>
 
-      <router-link to="/notifications-sysad" class="nav-link" :class="{ active: $route.path === '/notifications-sysad' }">
+      <router-link to="/notifications-dean" class="nav-link" :class="{ active: $route.path === '/notifications-dean' }">
         <div class="icon-container">
           <i class="fas fa-bell"></i>
         </div>
@@ -29,31 +29,16 @@
           <i v-show="isExpanded" class="pi pi-angle-right dropdown-icon" :class="{ rotated: isScheduleDropdownOpen }"></i>
         </div>
         <div class="dropdown-menu" v-show="isExpanded && isScheduleDropdownOpen">
-          <router-link to="/schedule-sysad" class="dropdown-item" :class="{ active: $route.path === '/schedule-sysad' }">
+          <router-link to="/schedule-dean" class="dropdown-item" :class="{ active: $route.path === '/schedule-dean' }">
             <span>My Schedule</span>
           </router-link>
-        </div>
-      </div>
-
-      <div class="nav-dropdown" :class="{ active: isUsersDropdownOpen || isUsersRouteActive }">
-        <div class="nav-link" @click="toggleUsersDropdown">
-          <div class="icon-container">
-            <i class="fas fa-users"></i>
-          </div>
-          <span v-show="isExpanded">Users</span>
-          <i v-show="isExpanded" class="pi pi-angle-right dropdown-icon" :class="{ rotated: isUsersDropdownOpen }"></i>
-        </div>
-        <div class="dropdown-menu" v-show="isExpanded && isUsersDropdownOpen">
-            <router-link to="/user-management-sysad" class="dropdown-item" :class="{ active: $route.path === '/user-management-sysad' }">
-            <span>User Management</span>
-          </router-link>
-          <router-link to="/account-management-sysad" class="dropdown-item" :class="{ active: $route.path === '/account-management-sysad' }">
-            <span>Account Management</span>
+          <router-link to="/all-schedules-dean" class="dropdown-item" :class="{ active: $route.path === '/all-schedules-dean' }">
+            <span>All Schedules</span>
           </router-link>
         </div>
       </div>
 
-      <router-link to="/user-profile-sysad" class="nav-link" :class="{ active: $route.path === '/user-profile-sysad' }">
+      <router-link to="/user-profile-dean" class="nav-link" :class="{ active: $route.path === '/user-profile-dean' }">
         <div class="icon-container">
           <i class="fas fa-user"></i>
         </div>
@@ -65,79 +50,31 @@
 
 <script>
 export default {
-  name: 'DashBoardSidebarSysAd',
+  name: 'DashBoardSideBarDean',
   data() {
     return {
       isExpanded: false,
-      isScheduleDropdownOpen: false,
-      isUsersDropdownOpen: false
+      isScheduleDropdownOpen: false
     }
   },
   computed: {
     isScheduleRouteActive() {
-      return this.$route.path === '/schedule-sysad'
-    },
-    isUsersRouteActive() {
-      return this.$route.path === '/user-management-sysad' || this.$route.path === '/account-management-sysad'
+      return this.$route.path === '/schedule-dean' || this.$route.path === '/all-schedules-dean'
     }
   },
   methods: {
     expand() {
       this.isExpanded = true
-      this.$emit('sidebar-expanded')
     },
     collapse() {
       this.isExpanded = false
       this.isScheduleDropdownOpen = false
-      this.isUsersDropdownOpen = false
-      this.$emit('sidebar-collapsed')
     },
     toggleScheduleDropdown() {
       if (this.isExpanded) {
         this.isScheduleDropdownOpen = !this.isScheduleDropdownOpen
-        if (this.isScheduleDropdownOpen) {
-          this.isUsersDropdownOpen = false
-        }
-      }
-    },
-    toggleUsersDropdown() {
-      if (this.isExpanded) {
-        this.isUsersDropdownOpen = !this.isUsersDropdownOpen
-        if (this.isUsersDropdownOpen) {
-          this.isScheduleDropdownOpen = false
-        }
-      }
-    },
-    checkAuth() {
-      const token = sessionStorage.getItem('token') || localStorage.getItem('token');
-      const userStr = sessionStorage.getItem('user') || localStorage.getItem('user');
-      
-      if (!token || !userStr) {
-        console.warn('No authentication data found in sidebar - will redirect to login');
-        this.$router.push('/login');
-        return false;
-      }
-      
-      try {
-        const userData = JSON.parse(userStr);
-        if (userData.role !== 'System Administrator') {
-          console.warn('User does not have System Administrator role in sidebar - will redirect');
-          // Let the router handle the redirect based on role
-          this.$router.push('/');
-          return false;
-        }
-        return true;
-      } catch (error) {
-        console.error('Error parsing user data in sidebar:', error);
-        return false;
       }
     }
-  },
-  created() {
-    this.checkAuth();
-  },
-  mounted() {
-    this.checkAuth();
   }
 }
 </script>
@@ -264,6 +201,7 @@ export default {
   transition: all 0.2s ease;
   white-space: nowrap;
   font-size: 0.9rem;
+  border-left: 3px solid transparent;
 }
 
 .dropdown-item:hover, .dropdown-item.active {
@@ -271,4 +209,4 @@ export default {
   color: white;
   border-left-color: white;
 }
-</style>
+</style> 
