@@ -326,9 +326,9 @@ export default {
         
         const startMinutes = this.convertTimeToMinutes(schedule.startTime);
         const endMinutes = this.convertTimeToMinutes(schedule.endTime);
-        const isEndTimeSlot = timeSlot === schedule.endTime;
         
-        return (timeSlotMinutes >= startMinutes && timeSlotMinutes < endMinutes) || isEndTimeSlot;
+        // Include the ending time slot as well
+        return timeSlotMinutes >= startMinutes && timeSlotMinutes <= endMinutes;
       });
     },
     isScheduleStart(dayName, timeSlot) {
@@ -399,8 +399,8 @@ export default {
       return `${schedule.courseName}\n${schedule.section}\n${schedule.instructorName}`;
     },
     getScheduleStyle(dayName, timeSlot) {
-      // Filter by current lab room
-      const schedules = this.schedules.filter(schedule => {
+      // Find the specific schedule that contains this time slot
+      const schedule = this.schedules.find(schedule => {
         if (schedule.labRoom !== this.selectedLab || schedule.day !== dayName) {
           return false;
         }
@@ -409,19 +409,45 @@ export default {
         const startMinutes = this.convertTimeToMinutes(schedule.startTime);
         const endMinutes = this.convertTimeToMinutes(schedule.endTime);
         
-        return slotMinutes >= startMinutes && slotMinutes < endMinutes;
+        // Include the ending time slot as well
+        return slotMinutes >= startMinutes && slotMinutes <= endMinutes;
       });
       
-      if (schedules.length === 0) return {};
+      if (!schedule) return {};
       
+      // Use #DD385A for all schedules
       return {
-        backgroundColor: schedules[0].color || '#DD385A'
+        backgroundColor: '#DD385A'
       };
     },
     loadSchedulesFromStorage() {
       try {
         this.schedules = []; // Initialize as empty array
         
+        // First check if we have any sysadmin_displayed_schedules (these take priority)
+        const displayedSchedules = localStorage.getItem('sysadmin_displayed_schedules');
+        if (displayedSchedules) {
+          const parsedDisplayedSchedules = JSON.parse(displayedSchedules);
+          if (Array.isArray(parsedDisplayedSchedules) && parsedDisplayedSchedules.length > 0) {
+            // Use these as our primary schedules since they're already approved and selected for display
+            this.schedules = parsedDisplayedSchedules;
+            console.log('Loaded displayed schedules:', this.schedules.length);
+            return; // Exit early - don't mix with other schedules
+          }
+        }
+        
+        // If no displayed schedules, load from viewer_schedules which should be consistent across dashboards
+        const viewerSchedules = localStorage.getItem('viewer_schedules');
+        if (viewerSchedules) {
+          const parsedViewerSchedules = JSON.parse(viewerSchedules);
+          if (Array.isArray(parsedViewerSchedules) && parsedViewerSchedules.length > 0) {
+            this.schedules = parsedViewerSchedules;
+            console.log('Loaded from viewer schedules:', this.schedules.length);
+            return; // Exit early - don't mix with other schedules
+          }
+        }
+        
+        // Fallback: load from traditional sources
         // Load system admin schedules
         const sysAdminSchedules = localStorage.getItem('sysadmin_schedules');
         if (sysAdminSchedules) {
@@ -442,49 +468,25 @@ export default {
           }
         }
 
-        // Load academic coordinator schedules
-        const acadCoorSchedules = localStorage.getItem('acadcoor_schedules');
-        if (acadCoorSchedules) {
-          const parsedAcadCoorSchedules = JSON.parse(acadCoorSchedules);
-          if (Array.isArray(parsedAcadCoorSchedules)) {
-            const approvedAcadCoorSchedules = parsedAcadCoorSchedules.filter(schedule => schedule.status === 'approved');
-            this.schedules = [...this.schedules, ...approvedAcadCoorSchedules];
-          }
+        // If we have any schedules at this point, make sure they're from the same semester
+        if (this.schedules.length > 0) {
+          const firstSemester = this.schedules[0].semester;
+          this.schedules = this.schedules.filter(schedule => schedule.semester === firstSemester);
         }
 
-        // Load dean schedules
-        const deanSchedules = localStorage.getItem('dean_schedules');
-        if (deanSchedules) {
-          const parsedDeanSchedules = JSON.parse(deanSchedules);
-          if (Array.isArray(parsedDeanSchedules)) {
-            const approvedDeanSchedules = parsedDeanSchedules.filter(schedule => schedule.status === 'approved');
-            this.schedules = [...this.schedules, ...approvedDeanSchedules];
-          }
-        }
-
-        // Load viewer schedules
-        const viewerSchedules = localStorage.getItem('viewer_schedules');
-        if (viewerSchedules) {
-          const parsedViewerSchedules = JSON.parse(viewerSchedules);
-          if (Array.isArray(parsedViewerSchedules)) {
-            const approvedViewerSchedules = parsedViewerSchedules.filter(schedule => schedule.status === 'approved');
-            this.schedules = [...this.schedules, ...approvedViewerSchedules];
-          }
-        }
-
-        // De-duplicate schedules based on composite key (day + startTime + labRoom)
+        // De-duplicate schedules based on ID
         const uniqueSchedules = [];
         const seen = new Set();
         
         this.schedules.forEach(schedule => {
-          const key = `${schedule.day}-${schedule.startTime}-${schedule.labRoom}`;
-          if (!seen.has(key)) {
-            seen.add(key);
+          if (!seen.has(schedule.id)) {
+            seen.add(schedule.id);
             uniqueSchedules.push(schedule);
           }
         });
 
         this.schedules = uniqueSchedules;
+        console.log('Final loaded schedules:', this.schedules.length);
 
         // If no schedules found, initialize with mock data
         if (this.schedules.length === 0) {

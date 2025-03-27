@@ -69,12 +69,12 @@
                           <div 
                             v-if="isTimeSlotWithinSchedule(day.name, time)"
                             class="schedule-item" 
-                            :style="getScheduleStyle(day.name, time)"
+                            :class="getScheduleStatusClass(day.name, time)"
+                            @click="showScheduleDetails(day.name, time)"
                           >
                             <div 
                               v-if="isScheduleStart(day.name, time)" 
                               class="schedule-content"
-                              @click="showScheduleDetails(day.name, time)"
                             >
                               <div class="schedule-lab">{{ selectedLab }}</div>
                               <div class="schedule-time">{{ getScheduleTime(day.name, time) }}</div>
@@ -280,9 +280,9 @@ export default {
         
         const startMinutes = this.convertTimeToMinutes(schedule.startTime);
         const endMinutes = this.convertTimeToMinutes(schedule.endTime);
-        const isEndTimeSlot = timeSlot === schedule.endTime;
         
-        return (timeSlotMinutes >= startMinutes && timeSlotMinutes < endMinutes) || isEndTimeSlot;
+        // Include the ending time slot as well
+        return timeSlotMinutes >= startMinutes && timeSlotMinutes <= endMinutes;
       });
     },
     isScheduleStart(dayName, timeSlot) {
@@ -353,8 +353,8 @@ export default {
       return `${schedule.courseName}\n${schedule.section}\n${schedule.instructorName}`;
     },
     getScheduleStyle(dayName, timeSlot) {
-      // Filter by current lab room
-      const schedules = this.schedules.filter(schedule => {
+      // Find the specific schedule that contains this time slot
+      const schedule = this.schedules.find(schedule => {
         if (schedule.labRoom !== this.selectedLab || schedule.day !== dayName) {
           return false;
         }
@@ -366,36 +366,28 @@ export default {
         return slotMinutes >= startMinutes && slotMinutes < endMinutes;
       });
       
-      if (schedules.length === 0) return {};
+      if (!schedule) return {};
       
       return {
-        backgroundColor: schedules[0].color || '#DD385A'
+        backgroundColor: schedule.color || '#DD385A'
       };
     },
     loadSchedulesFromStorage() {
       try {
         this.schedules = []; // Initialize as empty array
         
-        // Load academic coordinator schedules
-        const acadCoorSchedules = localStorage.getItem('acadcoor_schedules');
-        if (acadCoorSchedules) {
-          const parsedAcadCoorSchedules = JSON.parse(acadCoorSchedules);
-          if (Array.isArray(parsedAcadCoorSchedules)) {
-            const approvedAcadCoorSchedules = parsedAcadCoorSchedules.filter(schedule => schedule.status === 'approved');
-            this.schedules = [...this.schedules, ...approvedAcadCoorSchedules];
+        // First check for viewer_schedules (these should be consistent across dashboards)
+        const viewerSchedules = localStorage.getItem('viewer_schedules');
+        if (viewerSchedules) {
+          const parsedViewerSchedules = JSON.parse(viewerSchedules);
+          if (Array.isArray(parsedViewerSchedules) && parsedViewerSchedules.length > 0) {
+            this.schedules = parsedViewerSchedules;
+            console.log('Loaded from viewer schedules:', this.schedules.length);
+            return; // Exit early - don't mix with other schedules
           }
         }
-
-        // Load lab schedules
-        const labSchedules = localStorage.getItem('lab_schedules');
-        if (labSchedules) {
-          const parsedLabSchedules = JSON.parse(labSchedules);
-          if (Array.isArray(parsedLabSchedules)) {
-            const approvedLabSchedules = parsedLabSchedules.filter(schedule => schedule.status === 'approved');
-            this.schedules = [...this.schedules, ...approvedLabSchedules];
-          }
-        }
-
+        
+        // Fallback: load schedules from traditional sources
         // Load system admin schedules
         const sysAdminSchedules = localStorage.getItem('sysadmin_schedules');
         if (sysAdminSchedules) {
@@ -406,50 +398,44 @@ export default {
           }
         }
 
-        // Load dean schedules
-        const deanSchedules = localStorage.getItem('dean_schedules');
-        if (deanSchedules) {
-          const parsedDeanSchedules = JSON.parse(deanSchedules);
-          if (Array.isArray(parsedDeanSchedules)) {
-            const approvedDeanSchedules = parsedDeanSchedules.filter(schedule => schedule.status === 'approved');
-            this.schedules = [...this.schedules, ...approvedDeanSchedules];
+        // Load academic coordinator schedules
+        const acadCoorSchedules = localStorage.getItem('acad_coor_schedules');
+        if (acadCoorSchedules) {
+          const parsedAcadCoorSchedules = JSON.parse(acadCoorSchedules);
+          if (Array.isArray(parsedAcadCoorSchedules)) {
+            const approvedAcadCoorSchedules = parsedAcadCoorSchedules.filter(schedule => schedule.status === 'approved');
+            this.schedules = [...this.schedules, ...approvedAcadCoorSchedules];
           }
         }
 
-        // Load viewer schedules
-        const viewerSchedules = localStorage.getItem('viewer_schedules');
-        if (viewerSchedules) {
-          const parsedViewerSchedules = JSON.parse(viewerSchedules);
-          if (Array.isArray(parsedViewerSchedules)) {
-            const approvedViewerSchedules = parsedViewerSchedules.filter(schedule => schedule.status === 'approved');
-            this.schedules = [...this.schedules, ...approvedViewerSchedules];
-          }
+        // If we have any schedules at this point, make sure they're from the same semester
+        if (this.schedules.length > 0) {
+          const firstSemester = this.schedules[0].semester;
+          this.schedules = this.schedules.filter(schedule => schedule.semester === firstSemester);
         }
 
-        // De-duplicate schedules based on composite key (day + startTime + labRoom)
+        // De-duplicate schedules based on ID
         const uniqueSchedules = [];
         const seen = new Set();
         
         this.schedules.forEach(schedule => {
-          const key = `${schedule.day}-${schedule.startTime}-${schedule.labRoom}`;
-          if (!seen.has(key)) {
-            seen.add(key);
+          if (!seen.has(schedule.id)) {
+            seen.add(schedule.id);
             uniqueSchedules.push(schedule);
           }
         });
 
         this.schedules = uniqueSchedules;
+        console.log('Final loaded schedules:', this.schedules.length);
 
-        // If no schedules found, initialize with mock data
+        // If no schedules found, initialize with sample schedules
         if (this.schedules.length === 0) {
-          this.initializeMockSchedules();
-          this.loadSchedulesFromStorage(); // Reload after initialization
+          this.initializeWithSampleSchedules();
         }
       } catch (error) {
         console.error('Error loading schedules from localStorage:', error);
         this.schedules = []; // Ensure schedules is an array even if loading fails
-        this.initializeMockSchedules();
-        this.loadSchedulesFromStorage(); // Reload after initialization
+        this.initializeWithSampleSchedules();
       }
     },
     previousMonth() {
@@ -503,7 +489,7 @@ export default {
         }
       }
     },
-    initializeMockSchedules() {
+    initializeWithSampleSchedules() {
       // Sample data that matches the Dean dashboard format
       const mockSchedules = [
         {
@@ -549,6 +535,25 @@ export default {
       
       localStorage.setItem('acadcoor_schedules', JSON.stringify(mockSchedules));
       console.log('Mock schedules initialized for Academic Coordinator');
+    },
+    getScheduleStatusClass(dayName, timeSlot) {
+      // Find the specific schedule that contains this time slot
+      const schedule = this.schedules.find(schedule => {
+        if (schedule.labRoom !== this.selectedLab || schedule.day !== dayName) {
+          return false;
+        }
+        
+        const slotMinutes = this.convertTimeToMinutes(timeSlot);
+        const startMinutes = this.convertTimeToMinutes(schedule.startTime);
+        const endMinutes = this.convertTimeToMinutes(schedule.endTime);
+        
+        // Include the ending time slot as well
+        return slotMinutes >= startMinutes && slotMinutes <= endMinutes;
+      });
+      
+      if (!schedule) return '';
+      
+      return `status-${schedule.status.toLowerCase()}`;
     }
   }
 }
@@ -828,6 +833,18 @@ export default {
   padding: 0.5rem;
   overflow: hidden;
   z-index: 5;
+}
+
+.schedule-item.status-draft {
+  background-color: #DD385A;
+}
+
+.schedule-item.status-pending {
+  background-color: #DD385A;
+}
+
+.schedule-item.status-approved {
+  background-color: #DD385A;
 }
 
 .schedule-content {

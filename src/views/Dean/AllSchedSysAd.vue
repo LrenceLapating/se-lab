@@ -86,7 +86,7 @@
                           <div 
                             v-if="isTimeSlotWithinSchedule(day.name, time)"
                             class="schedule-item" 
-                            :style="getScheduleStyle(day.name, time)"
+                            :class="getScheduleStatusClass(day.name, time)"
                           >
                             <div 
                               v-if="isScheduleStart(day.name, time)" 
@@ -349,9 +349,9 @@ export default {
         
         const startMinutes = this.convertTimeToMinutes(schedule.startTime);
         const endMinutes = this.convertTimeToMinutes(schedule.endTime);
-        const isEndTimeSlot = timeSlot === schedule.endTime;
         
-        return (timeSlotMinutes >= startMinutes && timeSlotMinutes < endMinutes) || isEndTimeSlot;
+        // Include the ending time slot as well
+        return timeSlotMinutes >= startMinutes && timeSlotMinutes <= endMinutes;
       });
     },
     isScheduleStart(dayName, timeSlot) {
@@ -421,9 +421,9 @@ export default {
       const schedule = relevantSchedules[0];
       return `${schedule.courseName}\n${schedule.section}\n${schedule.instructorName}`;
     },
-    getScheduleStyle(dayName, timeSlot) {
-      // Filter by current lab room
-      const schedules = this.schedules.filter(schedule => {
+    getScheduleStatusClass(dayName, timeSlot) {
+      // Find the specific schedule that contains this time slot
+      const schedule = this.schedules.find(schedule => {
         if (schedule.labRoom !== this.selectedLab || schedule.day !== dayName) {
           return false;
         }
@@ -432,16 +432,23 @@ export default {
         const startMinutes = this.convertTimeToMinutes(schedule.startTime);
         const endMinutes = this.convertTimeToMinutes(schedule.endTime);
         
-        return slotMinutes >= startMinutes && slotMinutes < endMinutes;
+        // Include the ending time slot as well
+        return slotMinutes >= startMinutes && slotMinutes <= endMinutes;
       });
       
-      if (schedules.length === 0) return {};
+      if (!schedule) return '';
       
-      // Use different colors for pending vs approved schedules
-      const schedule = schedules[0];
-      return {
-        backgroundColor: schedule.status === 'pending' ? '#DD385A' : '#4CAF50'
-      };
+      // Return the appropriate class for the schedule status
+      switch (schedule.status) {
+        case 'draft':
+          return 'status-draft';
+        case 'pending':
+          return 'status-pending';
+        case 'approved':
+          return 'status-approved';
+        default:
+          return 'status-approved';
+      }
     },
     loadSchedulesFromStorage() {
       try {
@@ -684,6 +691,61 @@ export default {
           // Save back to acad_coor_schedules
           localStorage.setItem('acad_coor_schedules', JSON.stringify(acadCoorSchedules));
           
+          // Get the currently displayed semester in viewer dashboards
+          let currentDisplayedSemester;
+          
+          // Check viewer_schedules to determine which semester is currently displayed
+          const viewerSchedules = JSON.parse(localStorage.getItem('viewer_schedules') || '[]');
+          if (Array.isArray(viewerSchedules) && viewerSchedules.length > 0) {
+            // Assume all displayed schedules are from the same semester
+            currentDisplayedSemester = viewerSchedules[0].semester;
+          }
+
+          // If approving a schedule from a different semester than what's currently displayed
+          if (currentDisplayedSemester && currentDisplayedSemester !== this.selectedSemester) {
+            console.log(`Switching displayed schedules from ${currentDisplayedSemester} to ${this.selectedSemester}`);
+            
+            // Clear all existing displayed schedules in all dashboards
+            localStorage.removeItem('viewer_schedules');
+            localStorage.removeItem('lab_schedules');
+            localStorage.removeItem('sysadmin_displayed_schedules');
+            
+            // Get all approved schedules for the new semester
+            const approvedSchedulesForNewSemester = this.allSchedules.filter(schedule => 
+              schedule.status === 'approved' && 
+              schedule.semester === this.selectedSemester
+            );
+            
+            // Update all dashboard views with only the approved schedules from the new semester
+            localStorage.setItem('viewer_schedules', JSON.stringify(approvedSchedulesForNewSemester));
+            localStorage.setItem('lab_schedules', JSON.stringify(approvedSchedulesForNewSemester));
+            localStorage.setItem('sysadmin_displayed_schedules', JSON.stringify(approvedSchedulesForNewSemester));
+          } else {
+            // If approving schedules from the same semester or there are no currently displayed schedules
+            // Just add the newly approved schedules to all dashboard views
+            const currentViewerSchedules = JSON.parse(localStorage.getItem('viewer_schedules') || '[]');
+            const currentLabSchedules = JSON.parse(localStorage.getItem('lab_schedules') || '[]');
+            const currentSysAdminSchedules = JSON.parse(localStorage.getItem('sysadmin_displayed_schedules') || '[]');
+            
+            // Get only the newly approved schedules
+            const newlyApprovedSchedules = pendingSchedules.map(schedule => ({
+              ...schedule,
+              status: 'approved'
+            }));
+            
+            // Update viewer_schedules
+            const updatedViewerSchedules = this.mergeSchedules(currentViewerSchedules, newlyApprovedSchedules);
+            localStorage.setItem('viewer_schedules', JSON.stringify(updatedViewerSchedules));
+            
+            // Update lab_schedules 
+            const updatedLabSchedules = this.mergeSchedules(currentLabSchedules, newlyApprovedSchedules);
+            localStorage.setItem('lab_schedules', JSON.stringify(updatedLabSchedules));
+            
+            // Update sysadmin_displayed_schedules
+            const updatedSysAdminSchedules = this.mergeSchedules(currentSysAdminSchedules, newlyApprovedSchedules);
+            localStorage.setItem('sysadmin_displayed_schedules', JSON.stringify(updatedSysAdminSchedules));
+          }
+          
           // Refresh the filtered schedules
           this.filterSchedulesBySemester();
           
@@ -799,7 +861,9 @@ export default {
     clearAllSchedules() {
       // Clear all schedule-related data from localStorage
       localStorage.removeItem('labSchedules');
+      localStorage.removeItem('lab_schedules');
       localStorage.removeItem('sysadmin_schedules');
+      localStorage.removeItem('sysadmin_displayed_schedules');
       localStorage.removeItem('acad_coor_schedules');
       localStorage.removeItem('schedules');
       localStorage.removeItem('viewer_schedules');
@@ -810,6 +874,26 @@ export default {
       this.schedules = [];
       
       console.log('All schedules cleared');
+    },
+    mergeSchedules(existingSchedules, newSchedules) {
+      const seen = new Set();
+      const mergedSchedules = [];
+
+      existingSchedules.forEach(schedule => {
+        if (!seen.has(schedule.id)) {
+          seen.add(schedule.id);
+          mergedSchedules.push(schedule);
+        }
+      });
+
+      newSchedules.forEach(schedule => {
+        if (!seen.has(schedule.id)) {
+          seen.add(schedule.id);
+          mergedSchedules.push(schedule);
+        }
+      });
+
+      return mergedSchedules;
     }
   }
 }
@@ -1050,11 +1134,22 @@ export default {
   right: 0;
   top: 0;
   bottom: 0;
-  background-color: #DD385A;
   color: white;
   padding: 0.5rem;
   overflow: hidden;
   z-index: 5;
+}
+
+.schedule-item.status-draft {
+  background-color: #DD385A;
+}
+
+.schedule-item.status-pending {
+  background-color: #FFA500;
+}
+
+.schedule-item.status-approved {
+  background-color: #4CAF50;
 }
 
 .schedule-content {

@@ -68,8 +68,7 @@
                   <div class="time-slot" v-for="(time, timeIndex) in displayTimeSlots" :key="timeIndex">
                     <div 
                       v-if="isTimeSlotWithinSchedule(day.name, time)"
-                      class="schedule-item" 
-                      :style="getScheduleStyle(day.name, time)"
+                      :class="['schedule-item', getScheduleStatusClass(day.name, time)]" 
                       @click="openEditDeleteModal(day.name, time)"
                     >
                       <div 
@@ -804,9 +803,9 @@ export default {
         
         const startMinutes = this.convertTimeToMinutes(schedule.startTime);
         const endMinutes = this.convertTimeToMinutes(schedule.endTime);
-        const isEndTimeSlot = timeSlot === schedule.endTime;
         
-        return (timeSlotMinutes >= startMinutes && timeSlotMinutes < endMinutes) || isEndTimeSlot;
+        // Include the ending time slot as well
+        return timeSlotMinutes >= startMinutes && timeSlotMinutes <= endMinutes;
       });
     },
     isScheduleStart(dayName, timeSlot) {
@@ -876,31 +875,59 @@ export default {
       const schedule = relevantSchedules[0];
       return `${schedule.courseName}\n${schedule.section}\n${schedule.instructorName}`;
     },
-    getScheduleStyle(dayName, timeSlot) {
-      // Filter by current lab room
-      const schedules = this.schedules.filter(schedule => {
-        if (schedule.labRoom !== this.selectedLab || schedule.day !== dayName) {
+    getScheduleStatusClass(dayName, timeSlot) {
+      // Find the specific schedule that contains this time slot
+      const schedule = this.schedules.find(s => {
+        if (s.labRoom !== this.selectedLab || s.day !== dayName) {
           return false;
         }
         
         const slotMinutes = this.convertTimeToMinutes(timeSlot);
-        const startMinutes = this.convertTimeToMinutes(schedule.startTime);
-        const endMinutes = this.convertTimeToMinutes(schedule.endTime);
+        const startMinutes = this.convertTimeToMinutes(s.startTime);
+        const endMinutes = this.convertTimeToMinutes(s.endTime);
+        
+        // Include the ending time slot as well
+        return slotMinutes >= startMinutes && slotMinutes <= endMinutes;
+      });
+      
+      if (!schedule) return '';
+      
+      // Return the appropriate CSS class based on status
+      switch (schedule.status) {
+        case 'draft':
+          return 'status-draft';
+        case 'pending':
+          return 'status-pending';
+        case 'approved':
+          return 'status-approved';
+        default:
+          return 'status-draft';
+      }
+    },
+    getScheduleStyle(dayName, timeSlot) {
+      // Find the specific schedule that contains this time slot
+      const schedule = this.schedules.find(s => {
+        if (s.labRoom !== this.selectedLab || s.day !== dayName) {
+          return false;
+        }
+        
+        const slotMinutes = this.convertTimeToMinutes(timeSlot);
+        const startMinutes = this.convertTimeToMinutes(s.startTime);
+        const endMinutes = this.convertTimeToMinutes(s.endTime);
         
         return slotMinutes >= startMinutes && slotMinutes < endMinutes;
       });
       
-      if (schedules.length === 0) return {};
+      if (!schedule) return {};
       
       // Use different colors for different schedule statuses
-      const schedule = schedules[0];
       let backgroundColor;
       switch (schedule.status) {
         case 'draft':
           backgroundColor = '#DD385A'; // Red
           break;
         case 'pending':
-          backgroundColor = '#FFA500'; // Orange
+          backgroundColor = '#FFA500'; // Orange/Yellow
           break;
         case 'approved':
           backgroundColor = '#4CAF50'; // Green
@@ -2476,7 +2503,7 @@ h1 {
   right: 0;
   top: 0;
   bottom: 0;
-  background-color: #DD385A;
+  /* Remove the static background-color from here */
   padding: 8px;
   overflow: hidden;
   z-index: 10;
@@ -2487,6 +2514,19 @@ h1 {
   transition: all 0.2s ease;
   cursor: pointer;
   margin: 0;
+}
+
+/* Add specific status-based color classes */
+.schedule-item.status-draft {
+  background-color: #DD385A; /* Red */
+}
+
+.schedule-item.status-pending {
+  background-color: #FFA500; /* Orange/Yellow */
+}
+
+.schedule-item.status-approved {
+  background-color: #4CAF50; /* Green */
 }
 
 .schedule-item:hover {

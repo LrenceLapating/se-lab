@@ -386,27 +386,20 @@ export default {
       try {
         this.schedules = []; // Initialize as empty array
         
-        // Load viewer schedules
+        // Load viewer schedules as the priority source
         const viewerSchedules = localStorage.getItem('viewer_schedules');
         if (viewerSchedules) {
           const parsedViewerSchedules = JSON.parse(viewerSchedules);
-          if (Array.isArray(parsedViewerSchedules)) {
+          if (Array.isArray(parsedViewerSchedules) && parsedViewerSchedules.length > 0) {
+            // Only use approved schedules
             const approvedViewerSchedules = parsedViewerSchedules.filter(schedule => schedule.status === 'approved');
-            this.schedules = [...this.schedules, ...approvedViewerSchedules];
+            this.schedules = approvedViewerSchedules;
+            console.log('Loaded from viewer schedules:', this.schedules.length);
+            return; // Exit early - don't mix with other schedules
           }
         }
 
-        // Load lab schedules
-        const labSchedules = localStorage.getItem('lab_schedules');
-        if (labSchedules) {
-          const parsedLabSchedules = JSON.parse(labSchedules);
-          if (Array.isArray(parsedLabSchedules)) {
-            const approvedLabSchedules = parsedLabSchedules.filter(schedule => schedule.status === 'approved');
-            this.schedules = [...this.schedules, ...approvedLabSchedules];
-          }
-        }
-
-        // Load system admin schedules
+        // Fallback: load from system admin schedules
         const sysAdminSchedules = localStorage.getItem('sysadmin_schedules');
         if (sysAdminSchedules) {
           const parsedSysAdminSchedules = JSON.parse(sysAdminSchedules);
@@ -416,50 +409,34 @@ export default {
           }
         }
 
-        // Load academic coordinator schedules
-        const acadCoorSchedules = localStorage.getItem('acadcoor_schedules');
-        if (acadCoorSchedules) {
-          const parsedAcadCoorSchedules = JSON.parse(acadCoorSchedules);
-          if (Array.isArray(parsedAcadCoorSchedules)) {
-            const approvedAcadCoorSchedules = parsedAcadCoorSchedules.filter(schedule => schedule.status === 'approved');
-            this.schedules = [...this.schedules, ...approvedAcadCoorSchedules];
-          }
+        // If we have any schedules at this point, make sure they're from the same semester
+        if (this.schedules.length > 0) {
+          const firstSemester = this.schedules[0].semester;
+          this.schedules = this.schedules.filter(schedule => schedule.semester === firstSemester);
         }
 
-        // Load dean schedules
-        const deanSchedules = localStorage.getItem('dean_schedules');
-        if (deanSchedules) {
-          const parsedDeanSchedules = JSON.parse(deanSchedules);
-          if (Array.isArray(parsedDeanSchedules)) {
-            const approvedDeanSchedules = parsedDeanSchedules.filter(schedule => schedule.status === 'approved');
-            this.schedules = [...this.schedules, ...approvedDeanSchedules];
-          }
-        }
-
-        // De-duplicate schedules based on composite key (day + startTime + labRoom)
+        // De-duplicate schedules based on ID
         const uniqueSchedules = [];
         const seen = new Set();
         
         this.schedules.forEach(schedule => {
-          const key = `${schedule.day}-${schedule.startTime}-${schedule.labRoom}`;
-          if (!seen.has(key)) {
-            seen.add(key);
+          if (!seen.has(schedule.id)) {
+            seen.add(schedule.id);
             uniqueSchedules.push(schedule);
           }
         });
 
         this.schedules = uniqueSchedules;
+        console.log('Final loaded schedules:', this.schedules.length);
 
-        // If no schedules found, initialize with mock data
+        // If no schedules found, initialize with sample schedules
         if (this.schedules.length === 0) {
-          this.initializeMockSchedules();
-          this.loadSchedulesFromStorage(); // Reload after initialization
+          this.initializeWithSampleSchedules();
         }
       } catch (error) {
         console.error('Error loading schedules from localStorage:', error);
         this.schedules = []; // Ensure schedules is an array even if loading fails
-        this.initializeMockSchedules();
-        this.loadSchedulesFromStorage(); // Reload after initialization
+        this.initializeWithSampleSchedules();
       }
     },
     previousMonth() {
@@ -498,7 +475,7 @@ export default {
     closePopup() {
       this.showPopup = false;
     },
-    initializeMockSchedules() {
+    initializeWithSampleSchedules() {
       // Sample data that matches the Dean dashboard format
       const mockSchedules = [
         {
