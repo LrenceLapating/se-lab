@@ -524,59 +524,6 @@ export default {
       
       console.log(`Filtered ${this.schedules.length} schedules for semester ${this.selectedSemester}`);
     },
-    initializeWithSampleSchedules() {
-      // Sample schedules for demonstration purposes
-      const sampleSchedules = [
-        {
-          id: '1',
-          title: 'Mobile Development',
-          courseName: 'Mobile App Development',
-          section: 'CS 401',
-          instructorName: 'John Smith',
-          day: 'Monday',
-          startTime: '9:00 AM',
-          endTime: '11:00 AM',
-          labRoom: 'L201',
-          color: '#DD385A',
-          status: 'approved',
-          semester: '1st Sem 2025-2026'
-        },
-        {
-          id: '2',
-          title: 'Data Structures',
-          courseName: 'Advanced Data Structures',
-          section: 'CS 301',
-          instructorName: 'Jane Doe',
-          day: 'Wednesday',
-          startTime: '1:00 PM',
-          endTime: '3:00 PM',
-          labRoom: 'L202',
-          color: '#5D3FD3',
-          status: 'approved',
-          semester: '1st Sem 2025-2026'
-        },
-        {
-          id: '3',
-          title: 'Web Development',
-          courseName: 'Frontend Web Development',
-          section: 'CS 201',
-          instructorName: 'Mark Johnson',
-          day: 'Friday',
-          startTime: '10:00 AM',
-          endTime: '12:00 PM',
-          labRoom: 'L201',
-          color: '#32A852',
-          status: 'approved',
-          semester: '1st Sem 2025-2026'
-        }
-      ];
-      
-      this.allSchedules = sampleSchedules;
-      
-      // Store sample schedules in localStorage
-      localStorage.setItem('sysadmin_schedules', JSON.stringify(sampleSchedules));
-      console.log('Initialized with sample schedules');
-    },
     showScheduleDetails(dayName, timeSlot) {
       // Find the schedule for this day and timeSlot
       const relevantSchedules = this.schedules.filter(schedule => {

@@ -280,55 +280,11 @@ export default {
         const schedulesJson = localStorage.getItem('labSchedules');
         if (schedulesJson) {
           this.schedules = JSON.parse(schedulesJson);
-        } else {
-          // If no schedules in localStorage, initialize with mock data
-          this.initializeMockSchedules();
         }
       } catch (error) {
         console.error('Error loading schedules from storage:', error);
-        this.initializeMockSchedules();
+        this.schedules = [];
       }
-    },
-    initializeMockSchedules() {
-      // Sample data
-      this.schedules = [
-        {
-          id: 1,
-          labRoom: 'L201',
-          day: 'Monday',
-          startTime: '9:00 AM',
-          endTime: '11:00 AM',
-          courseName: 'Database Management Systems',
-          section: 'IT3A',
-          instructorName: 'Dr. Jane Smith',
-          color: '#FFD700'
-        },
-        {
-          id: 2,
-          labRoom: 'L201',
-          day: 'Monday',
-          startTime: '1:00 PM',
-          endTime: '3:00 PM',
-          courseName: 'Web Development',
-          section: 'CS2B',
-          instructorName: 'Prof. Michael Johnson',
-          color: '#32CD32'
-        },
-        {
-          id: 3,
-          labRoom: 'L201',
-          day: 'Wednesday',
-          startTime: '10:00 AM',
-          endTime: '12:00 PM',
-          courseName: 'Networking Fundamentals',
-          section: 'IT2A',
-          instructorName: 'Dr. Robert Chen',
-          color: '#4169E1'
-        }
-      ];
-      
-      // Save to localStorage for persistence
-      localStorage.setItem('labSchedules', JSON.stringify(this.schedules));
     },
     isTimeSlotWithinSchedule(day, timeSlot) {
       return this.getSchedulesForTimeslot(day, timeSlot, this.selectedLab).length > 0;

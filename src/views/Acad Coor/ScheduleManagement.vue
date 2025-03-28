@@ -199,8 +199,18 @@
           <div class="form-group">
             <label>Day</label>
             <div class="select-wrapper">
-              <select v-model="newSchedule.day" class="form-select">
+              <select v-model="newSchedule.day" class="form-select" required>
                 <option value="" disabled selected>Select Day</option>
+                <option v-for="day in days" :key="day" :value="day">{{ day }}</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Second Day (Optional)</label>
+            <div class="select-wrapper">
+              <select v-model="newSchedule.secondDay" class="form-select">
+                <option value="" selected>None</option>
                 <option v-for="day in days" :key="day" :value="day">{{ day }}</option>
               </select>
             </div>
@@ -433,6 +443,16 @@
           </div>
 
           <div class="form-group">
+            <label>Second Day (Optional)</label>
+            <div class="select-wrapper">
+              <select v-model="editSchedule.secondDay" class="form-select">
+                <option value="" selected>None</option>
+                <option v-for="day in days" :key="day" :value="day">{{ day }}</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
             <label>Lab Room No. <span class="optional-text">(Optional)</span></label>
             <div class="select-wrapper">
               <select v-model="editSchedule.labRoom" class="form-select">
@@ -650,7 +670,8 @@ export default {
         startPeriod: 'AM',
         endHour: '',
         endMinute: '00',
-        endPeriod: 'AM'
+        endPeriod: 'AM',
+        secondDay: ''
       },
       showFileUploadModal: false,
       selectedFile: null,
@@ -672,7 +693,8 @@ export default {
         startPeriod: 'AM',
         endHour: '',
         endMinute: '00',
-        endPeriod: 'AM'
+        endPeriod: 'AM',
+        secondDay: ''
       },
       showAddInstructorModal: false,
       newInstructorName: ''
@@ -1066,6 +1088,40 @@ export default {
         return;
       }
       
+      // Check for overlap on the second day if it's selected
+      if (this.newSchedule.secondDay) {
+        const secondDaySchedules = this.allSchedules.filter(schedule => 
+          schedule.semester === this.newSchedule.semester &&
+          schedule.day === this.newSchedule.secondDay && 
+          schedule.labRoom === this.newSchedule.labRoom &&
+          !schedule.isDeleted
+        );
+        
+        console.log('All existing schedules for second day:', secondDaySchedules);
+        
+        // Check for overlap on second day
+        hasOverlap = false;
+        for (const schedule of secondDaySchedules) {
+          const existingStartMinutes = this.convertTimeToMinutes(schedule.startTime);
+          const existingEndMinutes = this.convertTimeToMinutes(schedule.endTime);
+          
+          // Check for overlap using the same logic as for the main day
+          const noOverlap = 
+            endMinutes <= existingStartMinutes || 
+            startMinutes >= existingEndMinutes;
+          
+          if (!noOverlap) {
+            hasOverlap = true;
+            break;
+          }
+        }
+        
+        if (hasOverlap) {
+          alert(`Cannot create schedule at this time slot. There is already a schedule for ${this.newSchedule.secondDay} in ${this.newSchedule.labRoom} that overlaps with ${startTime} - ${endTime}.`);
+          return;
+        }
+      }
+      
       const selectedCourse = this.availableCoursesOffered.find(course => course.code === this.newSchedule.courseCode);
       const courseName = selectedCourse ? selectedCourse.name : '';
       
@@ -1087,7 +1143,8 @@ export default {
         duration: durationMinutes,
         types: [...this.scheduleTypes],
         color: '#DD385A',
-        status: 'draft'
+        status: 'draft',
+        secondDay: this.newSchedule.secondDay
       };
       
       try {
@@ -1106,6 +1163,16 @@ export default {
         
         // Add new schedule to existing schedules
         existingSchedules.push(newSchedule);
+        
+        // If second day is selected, create a duplicate schedule for that day
+        if (this.newSchedule.secondDay) {
+          const secondDaySchedule = {
+            ...newSchedule,
+            id: Date.now().toString() + '-second',
+            day: this.newSchedule.secondDay
+          };
+          existingSchedules.push(secondDaySchedule);
+        }
         
         // Save only to acad_coor_schedules
         localStorage.setItem('acad_coor_schedules', JSON.stringify(existingSchedules));
@@ -1244,7 +1311,8 @@ export default {
         startPeriod: 'AM',
         endHour: '',
         endMinute: '00',
-        endPeriod: 'AM'
+        endPeriod: 'AM',
+        secondDay: ''
       };
     },
     triggerFileInput() {
@@ -1600,7 +1668,8 @@ export default {
             startPeriod: startTimeParts[3],
             endHour: endTimeParts[1],
             endMinute: endTimeParts[2],
-            endPeriod: endTimeParts[3]
+            endPeriod: endTimeParts[3],
+            secondDay: schedule.secondDay
           };
           
           this.showEditDeleteModal = true;
@@ -1626,7 +1695,8 @@ export default {
         startPeriod: 'AM',
         endHour: '',
         endMinute: '00',
-        endPeriod: 'AM'
+        endPeriod: 'AM',
+        secondDay: this.selectedSchedule.secondDay
       };
       
       setTimeout(() => {
@@ -1774,13 +1844,69 @@ export default {
         duration: durationMinutes,
         types: this.editSchedule.types.length > 0 ? [...this.editSchedule.types] : [...this.selectedSchedule.types],
         color: '#DD385A',
-        status: 'draft' // Keep as draft after editing
+        status: 'draft', // Keep as draft after editing
+        secondDay: this.editSchedule.secondDay
       };
+      
+      // Check for overlap on the second day if it's selected and different from the first day
+      if (this.editSchedule.secondDay && this.editSchedule.secondDay !== this.editSchedule.day) {
+        const secondDaySchedules = this.allSchedules.filter(schedule => 
+          schedule.semester === this.editSchedule.semester &&
+          schedule.day === this.editSchedule.secondDay && 
+          schedule.labRoom === this.editSchedule.labRoom &&
+          schedule.id !== this.selectedSchedule.id &&
+          !schedule.isDeleted
+        );
+        
+        console.log('All existing schedules for second day in edit mode:', secondDaySchedules);
+        
+        // Check for overlap on second day
+        hasOverlap = false;
+        for (const schedule of secondDaySchedules) {
+          const existingStartMinutes = this.convertTimeToMinutes(schedule.startTime);
+          const existingEndMinutes = this.convertTimeToMinutes(schedule.endTime);
+          
+          // Check for overlap using the same logic as for the main day
+          const noOverlap = 
+            endMinutes <= existingStartMinutes || 
+            startMinutes >= existingEndMinutes;
+          
+          if (!noOverlap) {
+            hasOverlap = true;
+            break;
+          }
+        }
+        
+        if (hasOverlap) {
+          alert(`Cannot update schedule at this time slot. There is already a schedule for ${this.editSchedule.secondDay} in ${this.editSchedule.labRoom} that overlaps with ${startTime} - ${endTime}.`);
+          return;
+        }
+      }
       
       // Update the schedule in allSchedules
       const scheduleIndex = this.allSchedules.findIndex(s => s.id === this.selectedSchedule.id);
       if (scheduleIndex !== -1) {
         this.allSchedules[scheduleIndex] = updatedSchedule;
+      }
+      
+      // Handle the secondary day scheduling
+      // First, check if there was a previous second day schedule
+      const previousSecondDayId = this.selectedSchedule.id + '-second';
+      const previousSecondDayIndex = this.allSchedules.findIndex(s => s.id === previousSecondDayId);
+      
+      // Remove the previous second day schedule if it exists
+      if (previousSecondDayIndex !== -1) {
+        this.allSchedules.splice(previousSecondDayIndex, 1);
+      }
+      
+      // Add a new second day schedule if necessary
+      if (this.editSchedule.secondDay && this.editSchedule.secondDay !== this.editSchedule.day) {
+        const secondDaySchedule = {
+          ...updatedSchedule,
+          id: updatedSchedule.id + '-second',
+          day: this.editSchedule.secondDay
+        };
+        this.allSchedules.push(secondDaySchedule);
       }
       
       // Save changes to storage
@@ -1811,8 +1937,11 @@ export default {
       }
       
       try {
-        // Remove from allSchedules array
-        this.allSchedules = this.allSchedules.filter(schedule => schedule.id !== scheduleId);
+        // Remove from allSchedules array - both the main schedule and any second day schedule
+        const secondDayId = scheduleId + '-second';
+        this.allSchedules = this.allSchedules.filter(schedule => 
+          schedule.id !== scheduleId && schedule.id !== secondDayId
+        );
         
         // Get and update acad_coor_schedules in localStorage
         let existingSchedules = JSON.parse(localStorage.getItem('acad_coor_schedules') || '[]');
@@ -1827,14 +1956,18 @@ export default {
           existingSchedules = [];
         }
         
-        // Filter out the deleted schedule
-        const updatedSchedules = existingSchedules.filter(schedule => schedule.id !== scheduleId);
+        // Filter out the deleted schedule and its second day schedule if it exists
+        const updatedSchedules = existingSchedules.filter(schedule => 
+          schedule.id !== scheduleId && schedule.id !== secondDayId
+        );
         
         // Save back to localStorage
         localStorage.setItem('acad_coor_schedules', JSON.stringify(updatedSchedules));
         
         // Update the filtered schedules display
-        this.schedules = this.schedules.filter(schedule => schedule.id !== scheduleId);
+        this.schedules = this.schedules.filter(schedule => 
+          schedule.id !== scheduleId && schedule.id !== secondDayId
+        );
         
         // Show success feedback
         alert(`Schedule deleted successfully! The course "${courseCode}" is now available for scheduling again.`);
@@ -1866,7 +1999,8 @@ export default {
         startPeriod: 'AM',
         endHour: '',
         endMinute: '00',
-        endPeriod: 'AM'
+        endPeriod: 'AM',
+        secondDay: ''
       };
     },
     showImportCoursesModal() {

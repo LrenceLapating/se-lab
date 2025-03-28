@@ -188,53 +188,6 @@ export default {
       // This method is kept but no longer automatically initializes sample schedules
       console.log('Schedule initialization is disabled. Please create schedules through the Schedule Management interface.');
     },
-    initializeMockSchedules() {
-      // Sample data that matches the Dean dashboard format
-      const mockSchedules = [
-        {
-          id: 1,
-          labRoom: 'L101',
-          day: 'Monday',
-          startTime: '8:00 AM',
-          endTime: '11:00 AM',
-          title: 'GEC123',
-          courseName: 'Science, Technology & Society',
-          section: 'BSIT-1B',
-          instructorName: 'Dr. Maria Santos',
-          color: '#DD385A',
-          status: 'approved'
-        },
-        {
-          id: 2,
-          labRoom: 'L101',
-          day: 'Tuesday',
-          startTime: '8:00 AM',
-          endTime: '10:00 AM',
-          title: 'FFW123',
-          courseName: 'Ignatian Spirituality & Christian Life 1',
-          section: 'BSIT-1A',
-          instructorName: 'Fr. James Rodriguez',
-          color: '#DD385A',
-          status: 'approved'
-        },
-        {
-          id: 3,
-          labRoom: 'L101',
-          day: 'Wednesday',
-          startTime: '10:00 AM',
-          endTime: '12:00 PM',
-          title: 'NET101',
-          courseName: 'Networking',
-          section: 'BSIT-2A',
-          instructorName: 'Engr. Roberto Dela Cruz',
-          color: '#4169E1',
-          status: 'approved'
-        }
-      ];
-      
-      localStorage.setItem('lab_schedules', JSON.stringify(mockSchedules));
-      console.log('Mock schedules initialized for Lab InCharge');
-    },
     loadSchedulesFromStorage() {
       try {
         this.schedules = []; // Initialize as empty array
@@ -290,15 +243,9 @@ export default {
 
         this.schedules = uniqueSchedules;
         console.log('Final loaded schedules:', this.schedules.length);
-
-        // If no schedules found, initialize with sample schedules
-        if (this.schedules.length === 0) {
-          this.initializeMockSchedules();
-        }
       } catch (error) {
         console.error('Error loading schedules from localStorage:', error);
         this.schedules = []; // Ensure schedules is an array even if loading fails
-        this.initializeMockSchedules();
       }
     },
     previousLab() {

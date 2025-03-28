@@ -5,6 +5,8 @@ import About from '../views/About.vue';
 import Features from '../views/Features.vue';
 import SignUp from '../views/SignUp.vue';
 import Login from '../views/Login.vue';
+import ForgotPassword from '../views/ForgotPassword.vue';
+import ResetPassword from '../views/ResetPassword.vue';
 import DashboardAcadCoor from '../views/Acad Coor/DashboardAcadCoor.vue';
 import { getDashboardPathForRole, hasAccessToRoute } from '../utils/roleUtils.js';
 
@@ -33,6 +35,16 @@ const routes = [
     path: '/login',
     name: 'Login',
     component: Login
+  },
+  {
+    path: '/forgot-password',
+    name: 'ForgotPassword',
+    component: ForgotPassword
+  },
+  {
+    path: '/reset-password',
+    name: 'ResetPassword',
+    component: ResetPassword
   },
   // Academic Coordinator Routes
   {

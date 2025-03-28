@@ -181,73 +181,11 @@ export default {
           }
         }
 
-        // If no schedules found, initialize with mock data
-        if (this.schedules.length === 0) {
-          this.initializeMockSchedules();
-          // Reload schedules after initialization
-          const newSysAdminSchedules = localStorage.getItem('sysadmin_schedules');
-          if (newSysAdminSchedules) {
-            const parsedSchedules = JSON.parse(newSysAdminSchedules);
-            // Filter again by selected lab
-            this.schedules = parsedSchedules.filter(schedule => 
-              schedule.labRoom === this.selectedLab
-            );
-          }
-        }
-
         console.log('Loaded schedules for lab ' + this.selectedLab + ':', this.schedules);
       } catch (error) {
         console.error('Error loading schedules:', error);
         this.schedules = [];
       }
-    },
-    
-    initializeMockSchedules() {
-      // Sample data that matches the other dashboards
-      const mockSchedules = [
-        {
-          id: 1,
-          labRoom: 'L201',
-          day: 'Monday',
-          startTime: '8:00 AM',
-          endTime: '11:00 AM',
-          title: 'GEC123',
-          courseName: 'Science, Technology & Society',
-          section: 'BSIT-1B',
-          instructorName: 'Dr. Maria Santos',
-          color: '#DD385A',
-          status: 'approved'
-        },
-        {
-          id: 2,
-          labRoom: 'L201',
-          day: 'Tuesday',
-          startTime: '8:00 AM',
-          endTime: '10:00 AM',
-          title: 'FFW123',
-          courseName: 'Ignatian Spirituality & Christian Life 1',
-          section: 'BSIT-1A',
-          instructorName: 'Fr. James Rodriguez',
-          color: '#DD385A',
-          status: 'approved'
-        },
-        {
-          id: 3,
-          labRoom: 'L201',
-          day: 'Wednesday',
-          startTime: '10:00 AM',
-          endTime: '12:00 PM',
-          title: 'NET101',
-          courseName: 'Networking',
-          section: 'BSIT-2A',
-          instructorName: 'Engr. Roberto Dela Cruz',
-          color: '#4169E1',
-          status: 'approved'
-        }
-      ];
-      
-      localStorage.setItem('sysadmin_schedules', JSON.stringify(mockSchedules));
-      console.log('Mock schedules initialized for System Admin');
     },
     
     getUserInfo() {

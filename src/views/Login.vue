@@ -38,7 +38,7 @@
           >
         </div>
 
-        <a href="#" class="forgot-password">Forgot your password?</a>
+        <router-link to="/forgot-password" class="forgot-password">Forgot your password?</router-link>
 
         <button class="login-button" @click="handleLogin" :disabled="isLoading">
           {{ isLoading ? 'Logging in...' : 'Log In' }}

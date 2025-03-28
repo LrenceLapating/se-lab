@@ -8,7 +8,10 @@ from datetime import datetime, timedelta
 import os
 import uuid
 from typing import Optional, Dict, Any
+from dotenv import load_dotenv
 
+
+load_dotenv()
 # Create FastAPI instance
 app = FastAPI(title="Lab Class API", description="API for Lab Class Management System")
 

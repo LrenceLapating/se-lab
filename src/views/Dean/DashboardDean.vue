@@ -178,12 +178,6 @@ export default {
     // Load schedules from storage
     this.loadSchedulesFromStorage();
     
-    // Initialize mock schedules only if none exist
-    if (this.schedules.length === 0) {
-      this.initializeMockSchedules();
-      this.loadSchedulesFromStorage(); // Reload to get mock schedules
-    }
-    
     // Generate week days and update calendar
     this.generateWeekDays();
     
@@ -380,63 +374,10 @@ export default {
 
         this.schedules = uniqueSchedules;
         console.log('Final loaded schedules:', this.schedules.length);
-
-        // If no schedules found, initialize with sample schedules
-        if (this.schedules.length === 0) {
-          this.initializeWithSampleSchedules();
-        }
       } catch (error) {
         console.error('Error loading schedules from localStorage:', error);
         this.schedules = []; // Ensure schedules is an array even if loading fails
-        this.initializeWithSampleSchedules();
       }
-    },
-    initializeMockSchedules() {
-      // Sample data with consistent format
-      const mockSchedules = [
-        {
-          id: 1,
-          labRoom: 'L501',
-          day: 'Monday',
-          startTime: '8:00 AM',
-          endTime: '11:00 AM',
-          title: 'GEC123',
-          courseName: 'Science, Technology & Society',
-          section: 'BSIT-1B',
-          instructorName: 'Dr. Maria Santos',
-          color: '#DD385A',
-          status: 'approved'
-        },
-        {
-          id: 2,
-          labRoom: 'L501',
-          day: 'Tuesday',
-          startTime: '8:00 AM',
-          endTime: '10:00 AM',
-          title: 'FFW123 (Lab)',
-          courseName: 'Ignatian Spirituality & Christian Life 1',
-          section: 'BSIT-1A',
-          instructorName: 'Fr. James Rodriguez',
-          color: '#DD385A',
-          status: 'approved'
-        },
-        {
-          id: 3,
-          labRoom: 'L501',
-          day: 'Wednesday',
-          startTime: '10:00 AM',
-          endTime: '12:00 PM',
-          title: 'Network101',
-          courseName: 'Networking',
-          section: 'BSIT-2A',
-          instructorName: 'Engr. Roberto Dela Cruz',
-          color: '#4169E1',
-          status: 'approved'
-        }
-      ];
-      
-      localStorage.setItem('dean_schedules', JSON.stringify(mockSchedules));
-      console.log('Mock schedules initialized for Dean');
     },
     isTimeSlotWithinSchedule(dayName, timeSlot) {
       if (!this.schedules || this.schedules.length === 0) {
