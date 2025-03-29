@@ -7,7 +7,7 @@
         <div class="dashboard-header">
           <div class="welcome-section">
             <div class="header-content">
-              <h2>All Schedules</h2>
+              <h2>Schedules Approval</h2>
               <div class="action-buttons" v-if="hasPendingSchedules">
                 <button class="clear-btn" @click="clearAllSchedules">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
